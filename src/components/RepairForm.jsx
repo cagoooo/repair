@@ -119,16 +119,26 @@ function RepairForm({ room, onSubmit, onClose }) {
         try {
             const imageUrls = [];
 
-            // 上傳多張圖片到 Firebase Storage
+            // 上傳多張圖片到 Firebase Storage（壓縮後）
             if (selectedImages.length > 0) {
                 try {
                     const { storage } = await import('../utils/firebase');
                     const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
+                    const imageCompression = (await import('browser-image-compression')).default;
 
                     if (storage) {
                         for (const img of selectedImages) {
-                            const storageRef = ref(storage, `repair-images/${Date.now()}_${img.name}`);
-                            const snapshot = await uploadBytes(storageRef, img);
+                            // 🗜️ 前端壓縮：800px / 200KB
+                            const compressed = await imageCompression(img, {
+                                maxSizeMB: 0.2,
+                                maxWidthOrHeight: 800,
+                                useWebWorker: true,
+                                fileType: 'image/webp'
+                            });
+                            console.log(`壓縮: ${(img.size / 1024).toFixed(0)}KB → ${(compressed.size / 1024).toFixed(0)}KB`);
+
+                            const storageRef = ref(storage, `repair-images/${Date.now()}_${img.name.replace(/\.\w+$/, '.webp')}`);
+                            const snapshot = await uploadBytes(storageRef, compressed);
                             const url = await getDownloadURL(snapshot.ref);
                             imageUrls.push(url);
                             console.log('Image uploaded:', url);

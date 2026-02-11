@@ -168,7 +168,9 @@ function App() {
 
         if (docSnap && docSnap.exists()) {
           const data = docSnap.data();
-          if (data.mapImage) setMapImage(data.mapImage);
+          // 優先讀取 Storage URL，向後兼容 base64
+          if (data.mapImageUrl) setMapImage(data.mapImageUrl);
+          else if (data.mapImage) setMapImage(data.mapImage);
           if (data.rooms) setRooms(data.rooms);
           console.log('已從雲端載入地圖設定');
         } else {
@@ -298,11 +300,17 @@ function App() {
       return;
     }
     try {
-      await setDoc(doc(db, 'system', 'mapConfig'), {
-        mapImage: mapImage, // 注意：如果圖片太大，建議改用 Storage url
+      const configData = {
         rooms: newRooms,
         updatedAt: new Date().toISOString()
-      });
+      };
+      // 如果 mapImage 是 URL（非 base64），存為 mapImageUrl
+      if (mapImage && !mapImage.startsWith('data:')) {
+        configData.mapImageUrl = mapImage;
+      } else {
+        configData.mapImage = mapImage;
+      }
+      await setDoc(doc(db, 'system', 'mapConfig'), configData);
       toast.success('地圖設定已儲存到雲端！所有使用者重整後皆可看到新配置。');
     } catch (error) {
       console.error('儲存失敗:', error);
@@ -316,10 +324,22 @@ function App() {
     setShowRepairForm(true);
   };
 
+  // 🛡️ 報修提交節流（30 秒冷卻）
+  const lastSubmitRef = { current: 0 };
+
   // 提交報修
   // 提交報修 (Firestore)
   const handleSubmitRepair = async (repairData) => {
     if (!db) { toast.error('無資料庫連線'); return; }
+
+    // 前端 Rate Limiting
+    const now = Date.now();
+    if (now - lastSubmitRef.current < 30000) {
+      toast.warning('提交過於頻繁，請稍候 30 秒再試');
+      return;
+    }
+    lastSubmitRef.current = now;
+
     try {
       await addDoc(collection(db, 'repairs'), {
         ...repairData,
