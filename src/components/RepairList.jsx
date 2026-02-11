@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import * as XLSX from 'xlsx';
 import { REPAIR_CATEGORIES, REPAIR_STATUS, REPAIR_PRIORITY } from '../data/repairCategories';
 import './RepairList.css';
 
@@ -6,11 +7,13 @@ import './RepairList.css';
  * 報修列表元件
  * 顯示所有報修單，支援篩選與狀態更新
  */
-function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom }) {
+function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment, onDeleteRepair }) {
     const [filter, setFilter] = useState({
         category: 'all',
         status: 'all',
-        search: ''
+        search: '',
+        dateFrom: '',
+        dateTo: ''
     });
     const [sortBy, setSortBy] = useState('createdAt');
     const [sortOrder, setSortOrder] = useState('desc');
@@ -38,6 +41,18 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom }) {
                 r.description?.toLowerCase().includes(searchLower) ||
                 r.reporterName?.toLowerCase().includes(searchLower)
             );
+        }
+
+        // 日期範圍篩選
+        if (filter.dateFrom) {
+            const from = new Date(filter.dateFrom);
+            from.setHours(0, 0, 0, 0);
+            result = result.filter(r => new Date(r.createdAt) >= from);
+        }
+        if (filter.dateTo) {
+            const to = new Date(filter.dateTo);
+            to.setHours(23, 59, 59, 999);
+            result = result.filter(r => new Date(r.createdAt) <= to);
         }
 
         // 排序
@@ -91,6 +106,95 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom }) {
 
     // 圖片預覽狀態
     const [previewImage, setPreviewImage] = useState(null);
+    // 展開詳情狀態
+    const [expandedId, setExpandedId] = useState(null);
+    // 管理員備註輸入
+    const [commentText, setCommentText] = useState('');
+    const [commentLoading, setCommentLoading] = useState(false);
+    // 各報修單的回覆列表
+    const [commentsMap, setCommentsMap] = useState({});
+
+    // 當展開卡片時，載入 comments
+    useEffect(() => {
+        if (!expandedId) return;
+        const loadComments = async () => {
+            try {
+                const { db } = await import('../utils/firebase');
+                const { collection, getDocs, orderBy, query } = await import('firebase/firestore');
+                if (!db) return;
+                const q = query(
+                    collection(db, 'repairs', expandedId, 'comments'),
+                    orderBy('createdAt', 'desc')
+                );
+                const snap = await getDocs(q);
+                const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                setCommentsMap(prev => ({ ...prev, [expandedId]: list }));
+            } catch (err) {
+                console.error('Error loading comments:', err);
+            }
+        };
+        loadComments();
+    }, [expandedId]);
+
+    // 新增備註
+    const handleAddComment = async (repairId) => {
+        if (!commentText.trim() || !onAddComment) return;
+        setCommentLoading(true);
+        try {
+            await onAddComment(repairId, commentText.trim());
+            setCommentText('');
+            // 重新載入 comments
+            const { db } = await import('../utils/firebase');
+            const { collection, getDocs, orderBy, query } = await import('firebase/firestore');
+            if (db) {
+                const q = query(
+                    collection(db, 'repairs', repairId, 'comments'),
+                    orderBy('createdAt', 'desc')
+                );
+                const snap = await getDocs(q);
+                const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                setCommentsMap(prev => ({ ...prev, [repairId]: list }));
+            }
+        } catch (err) {
+            console.error('Error adding comment:', err);
+            alert('備註新增失敗');
+        } finally {
+            setCommentLoading(false);
+        }
+    };
+
+    // Excel 匯出
+    const handleExportExcel = () => {
+        const data = filteredRepairs.map(r => ({
+            '報修編號': r.id,
+            '教室': `${r.roomCode} ${r.roomName}`,
+            '類別': REPAIR_CATEGORIES[r.category]?.name || r.category,
+            '項目': r.itemName || r.itemType,
+            '描述': r.description,
+            '申報人': r.reporterName,
+            '聯絡方式': r.reporterContact || '',
+            '優先度': REPAIR_PRIORITY[r.priority]?.name || r.priority,
+            '狀態': REPAIR_STATUS[r.status]?.name || r.status,
+            '建立時間': new Date(r.createdAt).toLocaleString('zh-TW')
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(data);
+        ws['!cols'] = [
+            { wch: 12 }, { wch: 15 }, { wch: 10 }, { wch: 15 },
+            { wch: 30 }, { wch: 10 }, { wch: 15 }, { wch: 8 },
+            { wch: 10 }, { wch: 20 }
+        ];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, '報修紀錄');
+        XLSX.writeFile(wb, `報修匯出_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    };
+
+    // 取得報修單的所有圖片
+    const getRepairImages = (repair) => {
+        if (repair.imageUrls && repair.imageUrls.length > 0) return repair.imageUrls;
+        if (repair.imageUrl) return [repair.imageUrl];
+        return [];
+    };
 
     return (
         <div className="repair-list-container animate-fadeIn">
@@ -182,6 +286,39 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom }) {
                         <option value="roomCode">🏫 教室代號</option>
                     </select>
                 </div>
+
+                {/* 日期範圍篩選 + Excel 匯出 */}
+                <div className="filter-row-bottom">
+                    <div className="date-range-filter">
+                        <span className="date-label">📅</span>
+                        <input
+                            type="date"
+                            className="filter-date"
+                            value={filter.dateFrom}
+                            onChange={(e) => setFilter(prev => ({ ...prev, dateFrom: e.target.value }))}
+                        />
+                        <span className="date-separator">—</span>
+                        <input
+                            type="date"
+                            className="filter-date"
+                            value={filter.dateTo}
+                            onChange={(e) => setFilter(prev => ({ ...prev, dateTo: e.target.value }))}
+                        />
+                        {(filter.dateFrom || filter.dateTo) && (
+                            <button
+                                className="clear-date-btn"
+                                onClick={() => setFilter(prev => ({ ...prev, dateFrom: '', dateTo: '' }))}
+                            >
+                                ✕
+                            </button>
+                        )}
+                    </div>
+                    {isAdmin && (
+                        <button className="btn btn-export" onClick={handleExportExcel}>
+                            📥 匯出 Excel ({filteredRepairs.length})
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* 報修列表 */}
@@ -196,50 +333,152 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom }) {
                         </button>
                     </div>
                 ) : (
-                    filteredRepairs.map(repair => (
-                        <div key={repair.id} className={`repair-card ${repair.priority}`}>
-                            <div className="repair-status-line" data-status={repair.status}></div>
+                    filteredRepairs.map(repair => {
+                        const images = getRepairImages(repair);
+                        const isExpanded = expandedId === repair.id;
+                        const comments = commentsMap[repair.id] || [];
 
-                            <div className="repair-card-header">
-                                <div className="repair-room-badge" onClick={() => onViewRoom(repair.roomId)}>
-                                    <span className="room-code">{repair.roomCode}</span>
-                                    <span className="room-name">{repair.roomName}</span>
+                        return (
+                            <div key={repair.id} className={`repair-card ${repair.priority} ${isExpanded ? 'expanded' : ''}`}>
+                                <div className="repair-status-line" data-status={repair.status}></div>
+
+                                {/* 卡片頂部 - 點擊展開 */}
+                                <div className="repair-card-header" onClick={() => setExpandedId(isExpanded ? null : repair.id)}>
+                                    <div className="repair-room-badge" onClick={(e) => { e.stopPropagation(); onViewRoom(repair.roomId); }}>
+                                        <span className="room-code">{repair.roomCode}</span>
+                                        <span className="room-name">{repair.roomName}</span>
+                                    </div>
+                                    {images.length > 0 && (
+                                        <div className="repair-thumbnail" onClick={(e) => { e.stopPropagation(); setPreviewImage(images[0]); }}>
+                                            <img src={images[0]} alt="證據" />
+                                            {images.length > 1 && (
+                                                <span className="image-count-badge">+{images.length - 1}</span>
+                                            )}
+                                        </div>
+                                    )}
+                                    <span>📅 {formatDate(repair.createdAt)}</span>
+                                    <span className={`expand-arrow ${isExpanded ? 'open' : ''}`}>▼</span>
                                 </div>
-                                {repair.imageUrl && (
-                                    <div className="repair-thumbnail" onClick={(e) => { e.stopPropagation(); setPreviewImage(repair.imageUrl); }}>
-                                        <img src={repair.imageUrl} alt="證據" />
+
+                                {/* 卡片內容 */}
+                                <div className="repair-card-body">
+                                    <div className="repair-info-row">
+                                        <span className="repair-category">
+                                            {REPAIR_CATEGORIES[repair.category]?.icon} {REPAIR_CATEGORIES[repair.category]?.name}
+                                            <span className="repair-item-name"> - {repair.itemName || repair.itemType}</span>
+                                        </span>
+                                        <span className={`repair-status-badge ${repair.status}`}>
+                                            {REPAIR_STATUS[repair.status]?.name}
+                                        </span>
+                                    </div>
+                                    <p className="repair-description">{repair.description}</p>
+                                    <div className="repair-footer">
+                                        <span className="reporter-name">👤 {repair.reporterName}</span>
+                                        {repair.reporterContact && <span className="reporter-contact">📞 {repair.reporterContact}</span>}
+                                    </div>
+                                </div>
+
+                                {/* 展開詳情區 */}
+                                {isExpanded && (
+                                    <div className="repair-detail-panel">
+                                        {/* 多圖畫廊 */}
+                                        {images.length > 0 && (
+                                            <div className="detail-section">
+                                                <h4>📷 現場照片</h4>
+                                                <div className="detail-image-gallery">
+                                                    {images.map((url, idx) => (
+                                                        <div key={idx} className="gallery-item" onClick={() => setPreviewImage(url)}>
+                                                            <img src={url} alt={`照片 ${idx + 1}`} />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* 時間軸 */}
+                                        <div className="detail-section">
+                                            <h4>🕒 處理時間軸</h4>
+                                            <div className="timeline">
+                                                <div className="timeline-item active">
+                                                    <div className="timeline-dot"></div>
+                                                    <div className="timeline-content">
+                                                        <span className="timeline-label">提交報修</span>
+                                                        <span className="timeline-date">{formatDate(repair.createdAt)}</span>
+                                                    </div>
+                                                </div>
+                                                <div className={`timeline-item ${repair.status === 'in_progress' || repair.status === 'completed' ? 'active' : ''}`}>
+                                                    <div className="timeline-dot"></div>
+                                                    <div className="timeline-content">
+                                                        <span className="timeline-label">開始處理</span>
+                                                        <span className="timeline-date">
+                                                            {repair.startedAt ? formatDate(repair.startedAt) : '尚未開始'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className={`timeline-item ${repair.status === 'completed' ? 'active' : ''}`}>
+                                                    <div className="timeline-dot"></div>
+                                                    <div className="timeline-content">
+                                                        <span className="timeline-label">完成修復</span>
+                                                        <span className="timeline-date">
+                                                            {repair.completedAt ? formatDate(repair.completedAt) : '尚未完成'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* 管理員備註區 */}
+                                        <div className="detail-section">
+                                            <h4>💬 處理備註 ({comments.length})</h4>
+                                            <div className="comments-list">
+                                                {comments.length === 0 && (
+                                                    <p className="no-comments">尚無備註</p>
+                                                )}
+                                                {comments.map(c => (
+                                                    <div key={c.id} className="comment-item">
+                                                        <div className="comment-header">
+                                                            <span className="comment-author">👤 {c.author || '管理員'}</span>
+                                                            <span className="comment-date">{c.createdAt ? formatDate(c.createdAt) : ''}</span>
+                                                        </div>
+                                                        <p className="comment-text">{c.text}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            {isAdmin && onAddComment && (
+                                                <div className="comment-input-area">
+                                                    <input
+                                                        type="text"
+                                                        className="comment-input"
+                                                        placeholder="輸入處理備註..."
+                                                        value={commentText}
+                                                        onChange={(e) => setCommentText(e.target.value)}
+                                                        onKeyDown={(e) => e.key === 'Enter' && handleAddComment(repair.id)}
+                                                    />
+                                                    <button
+                                                        className="btn btn-sm btn-comment"
+                                                        onClick={() => handleAddComment(repair.id)}
+                                                        disabled={commentLoading || !commentText.trim()}
+                                                    >
+                                                        {commentLoading ? '…' : '📨'}
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
-                                <span>📅 {formatDate(repair.createdAt)}</span>
-                            </div>
 
-                            <div className="repair-card-body">
-                                <div className="repair-info-row">
-                                    <span className="repair-category">
-                                        {REPAIR_CATEGORIES[repair.category]?.icon} {REPAIR_CATEGORIES[repair.category]?.name}
-                                        <span className="repair-item-name"> - {repair.itemName || repair.itemType}</span>
-                                    </span>
-                                    <span className={`repair-status-badge ${repair.status}`}>
-                                        {REPAIR_STATUS[repair.status]?.name}
-                                    </span>
-                                </div>
-                                <p className="repair-description">{repair.description}</p>
-                                <div className="repair-footer">
-                                    <span className="reporter-name">👤 {repair.reporterName}</span>
-                                    {repair.reporterContact && <span className="reporter-contact">📞 {repair.reporterContact}</span>}
-                                </div>
+                                {/* 管理員操作按鈕 */}
+                                {isAdmin && repair.status !== 'completed' && repair.status !== 'cancelled' && (
+                                    <button
+                                        className="btn btn-primary btn-sm"
+                                        onClick={() => onUpdateStatus(repair.id, getNextStatus(repair.status))}
+                                    >
+                                        {repair.status === 'pending' ? '🔄 開始處理' : '✅ 標記完成'}
+                                    </button>
+                                )}
                             </div>
-
-                            {isAdmin && repair.status !== 'completed' && repair.status !== 'cancelled' && (
-                                <button
-                                    className="btn btn-primary btn-sm"
-                                    onClick={() => onUpdateStatus(repair.id, getNextStatus(repair.status))}
-                                >
-                                    {repair.status === 'pending' ? '🔄 開始處理' : '✅ 標記完成'}
-                                </button>
-                            )}
-                        </div>
-                    ))
+                        );
+                    })
                 )}
             </div>
         </div>

@@ -59,28 +59,46 @@ function RepairForm({ room, onSubmit, onClose }) {
         return Object.keys(newErrors).length === 0;
     };
 
-    // 圖片上傳處理
-    const [selectedImage, setSelectedImage] = useState(null);
-    const [previewUrl, setPreviewUrl] = useState(null);
+    // 多圖上傳處理（最多 3 張）
+    const MAX_IMAGES = 3;
+    const [selectedImages, setSelectedImages] = useState([]);
+    const [previewUrls, setPreviewUrls] = useState([]);
 
     const handleImageChange = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+        const files = Array.from(e.target.files);
+        if (!files.length) return;
 
-        // 驗證檔案類型
-        if (!file.type.startsWith('image/')) {
-            alert('請選擇圖片檔案 (JPG, PNG, WebP)');
+        const remaining = MAX_IMAGES - selectedImages.length;
+        if (remaining <= 0) {
+            alert(`最多只能上傳 ${MAX_IMAGES} 張照片`);
             return;
         }
 
-        // 驗證檔案大小 (最大 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-            alert('圖片大小不能超過 5MB');
-            return;
+        const validFiles = [];
+        for (const file of files.slice(0, remaining)) {
+            if (!file.type.startsWith('image/')) {
+                alert(`「${file.name}」不是圖片檔案，已跳過`);
+                continue;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                alert(`「${file.name}」超過 5MB 限制，已跳過`);
+                continue;
+            }
+            validFiles.push(file);
         }
 
-        setSelectedImage(file);
-        setPreviewUrl(URL.createObjectURL(file));
+        if (validFiles.length) {
+            setSelectedImages(prev => [...prev, ...validFiles]);
+            setPreviewUrls(prev => [...prev, ...validFiles.map(f => URL.createObjectURL(f))]);
+        }
+        // Reset input so same file can be re-selected
+        e.target.value = '';
+    };
+
+    const handleRemoveImage = (index) => {
+        URL.revokeObjectURL(previewUrls[index]);
+        setSelectedImages(prev => prev.filter((_, i) => i !== index));
+        setPreviewUrls(prev => prev.filter((_, i) => i !== index));
     };
 
     // 提交表單
@@ -97,26 +115,28 @@ function RepairForm({ room, onSubmit, onClose }) {
         console.log('Submitting repair...');
 
         try {
-            let imageUrl = null;
+            const imageUrls = [];
 
-            // 上傳圖片到 Firebase Storage
-            if (selectedImage) {
+            // 上傳多張圖片到 Firebase Storage
+            if (selectedImages.length > 0) {
                 try {
                     const { storage } = await import('../utils/firebase');
                     const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
 
                     if (storage) {
-                        const storageRef = ref(storage, `repair-images/${Date.now()}_${selectedImage.name}`);
-                        const snapshot = await uploadBytes(storageRef, selectedImage);
-                        imageUrl = await getDownloadURL(snapshot.ref);
-                        console.log('Image uploaded successfully:', imageUrl);
+                        for (const img of selectedImages) {
+                            const storageRef = ref(storage, `repair-images/${Date.now()}_${img.name}`);
+                            const snapshot = await uploadBytes(storageRef, img);
+                            const url = await getDownloadURL(snapshot.ref);
+                            imageUrls.push(url);
+                            console.log('Image uploaded:', url);
+                        }
                     } else {
                         console.warn('Firebase Storage not initialized');
                     }
                 } catch (storageError) {
                     console.error('Storage upload failed:', storageError);
-                    alert(`圖片上傳失敗 (${storageError.code})，將繼續提交報修單。`);
-                    // Don't block submission if image fails, just continue without image
+                    alert(`部分圖片上傳失敗 (${storageError.code})，將繼續提交報修單。`);
                 }
             }
 
@@ -131,7 +151,8 @@ function RepairForm({ room, onSubmit, onClose }) {
                 priority: formData.priority,
                 reporterName: formData.reporterName.trim(),
                 reporterContact: formData.reporterContact.trim(),
-                imageUrl: imageUrl, // 新增圖片連結
+                imageUrl: imageUrls[0] || null, // 向後兼容：保留第一張
+                imageUrls: imageUrls, // 新增：多圖陣列
                 status: 'pending',
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
@@ -143,7 +164,7 @@ function RepairForm({ room, onSubmit, onClose }) {
             setErrors({ submit: '提交失敗，請稍後再試: ' + error.message });
         } finally {
             setIsSubmitting(false);
-            if (previewUrl) URL.revokeObjectURL(previewUrl);
+            previewUrls.forEach(url => URL.revokeObjectURL(url));
         }
     };
 
@@ -271,45 +292,40 @@ function RepairForm({ room, onSubmit, onClose }) {
                         </div>
                     </div>
 
-                    {/* 圖片上傳 */}
+                    {/* 多圖上傳 */}
                     <div className="form-group">
-                        <label className="form-label">現場照片 (選填)</label>
-                        <div className="image-upload-container">
+                        <label className="form-label">現場照片 (選填，最多 {MAX_IMAGES} 張)</label>
+                        <div className="image-upload-container multi">
                             <input
                                 type="file"
                                 id="repair-image"
                                 accept="image/*"
+                                multiple
                                 onChange={handleImageChange}
                                 style={{ display: 'none' }}
                             />
-                            <label htmlFor="repair-image" className="image-upload-btn">
-                                {previewUrl ? (
-                                    <div className="image-preview">
-                                        <img src={previewUrl} alt="Preview" />
-                                        <div className="image-overlay">
-                                            <span>更換照片</span>
+                            <div className="image-previews-grid">
+                                {previewUrls.map((url, idx) => (
+                                    <div key={idx} className="image-preview-item">
+                                        <img src={url} alt={`Preview ${idx + 1}`} />
+                                        <button
+                                            type="button"
+                                            className="remove-image-btn"
+                                            onClick={() => handleRemoveImage(idx)}
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                ))}
+                                {selectedImages.length < MAX_IMAGES && (
+                                    <label htmlFor="repair-image" className="image-upload-btn add-more">
+                                        <div className="upload-placeholder">
+                                            <span className="upload-icon">📷</span>
+                                            <span>{selectedImages.length === 0 ? '上傳照片' : '新增'}</span>
                                         </div>
-                                    </div>
-                                ) : (
-                                    <div className="upload-placeholder">
-                                        <span className="upload-icon">📷</span>
-                                        <span>上傳照片</span>
-                                    </div>
+                                    </label>
                                 )}
-                            </label>
-                            {selectedImage && (
-                                <button
-                                    type="button"
-                                    className="remove-image-btn"
-                                    onClick={() => {
-                                        setSelectedImage(null);
-                                        setPreviewUrl(null);
-                                        URL.revokeObjectURL(previewUrl);
-                                    }}
-                                >
-                                    ✕ 移除
-                                </button>
-                            )}
+                            </div>
                         </div>
                     </div>
 

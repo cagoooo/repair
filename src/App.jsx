@@ -331,22 +331,40 @@ function App() {
     }
   };
 
-  // 更新報修狀態
-  // 更新報修狀態 (Firestore)
+  // 更新報修狀態 (Firestore) - 含時間軸記錄
   const handleUpdateStatus = async (repairId, newStatus) => {
     if (!db) return;
     try {
       const repairRef = doc(db, 'repairs', repairId);
-      await updateDoc(repairRef, {
+      const now = new Date().toISOString();
+      const updateData = {
         status: newStatus,
-        updatedAt: new Date().toISOString()
-      });
+        updatedAt: now
+      };
+      // 記錄時間軸節點
+      if (newStatus === 'in_progress') updateData.startedAt = now;
+      if (newStatus === 'completed') updateData.completedAt = now;
+      await updateDoc(repairRef, updateData);
     } catch (e) {
       console.error('更新狀態失敗:', e);
     }
   };
 
-  // 刪除報修
+  // 新增處理備註 (Firestore subcollection)
+  const handleAddComment = async (repairId, text) => {
+    if (!isAdmin || !db) return;
+    try {
+      await addDoc(collection(db, 'repairs', repairId, 'comments'), {
+        text,
+        author: user?.displayName || user?.email || '管理員',
+        createdAt: new Date().toISOString()
+      });
+    } catch (e) {
+      console.error('新增備註失敗:', e);
+      throw e;
+    }
+  };
+
   // 刪除報修 (Firestore)
   const handleDeleteRepair = async (repairId) => {
     if (!isAdmin) {
@@ -466,6 +484,8 @@ function App() {
               repairs={repairs}
               isAdmin={isAdmin}
               onUpdateStatus={handleUpdateStatus}
+              onAddComment={handleAddComment}
+              onDeleteRepair={handleDeleteRepair}
               onViewRoom={(roomId) => {
                 const room = rooms.find(r => r.id === roomId);
                 if (room) setSelectedRoom(room);
