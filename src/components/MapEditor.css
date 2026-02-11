@@ -1,0 +1,574 @@
+/* MapEditor.css - Styles for Map Editor Overlay */
+
+.map-editor-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+    /* High z-index to cover everything */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(8px);
+}
+
+.map-editor-container {
+    background: #1e293b;
+    /* Dark slate */
+    border-radius: 12px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    width: 98vw;
+    height: 95vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    color: #f8fafc;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Header */
+.map-editor-header {
+    background: rgba(30, 41, 59, 0.95);
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
+}
+
+.header-left h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #f8fafc;
+}
+
+.map-editor-hint {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.875rem;
+    color: #94a3b8;
+}
+
+.header-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+/* Scroll Container */
+.map-scroll-container {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+    background: #0f172a;
+    /* Darker bg for map area */
+    display: flex;
+    padding: 2rem;
+    /* Custom scrollbar */
+    scrollbar-width: thin;
+    scrollbar-color: #475569 #1e293b;
+}
+
+.map-content-wrapper {
+    position: relative;
+    background: white;
+    /* Map background if transparent image */
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    /* border: 1px solid #cbd5e1; option */
+}
+
+.map-editor-image {
+    display: block;
+    user-select: none;
+    pointer-events: none;
+    /* Let clicks pass through if needed, wrapper handles selection */
+}
+
+/* Room Markers */
+.room-marker {
+    position: absolute;
+    /* Default colors, overridden by inline styles often */
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    background: rgba(59, 130, 246, 0.3);
+    cursor: grab;
+    transition: background-color 0.2s, box-shadow 0.2s, border-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    z-index: 5;
+    /* Default z-index */
+}
+
+.room-marker:active {
+    cursor: grabbing;
+}
+
+.room-marker:hover {
+    background: rgba(59, 130, 246, 0.5) !important;
+    z-index: 50 !important;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
+.room-marker.selected {
+    border: 2px solid #ef4444 !important;
+    /* Red for selection */
+    background: rgba(239, 68, 68, 0.3) !important;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.4), 0 4px 6px rgba(0, 0, 0, 0.3);
+    z-index: 100 !important;
+}
+
+.room-marker.calibrating {
+    border: 2px dashed #fbbf24 !important;
+    background: rgba(251, 191, 36, 0.2) !important;
+    animation: pulse-border 2s infinite;
+}
+
+.room-marker.drawing {
+    border: 2px dashed #3b82f6;
+    background: rgba(59, 130, 246, 0.2);
+    pointer-events: none;
+}
+
+.room-label-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    padding: 2px;
+    box-sizing: border-box;
+}
+
+.room-label {
+    color: white;
+    font-weight: bold;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8), 0 0 4px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.room-label.code {
+    font-size: clamp(0.7rem, 2vw, 1rem);
+    /* Responsive font size */
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0 4px;
+    border-radius: 4px;
+    margin-bottom: 2px;
+}
+
+.room-label.name {
+    font-size: clamp(0.5rem, 1.5vw, 0.8rem);
+    opacity: 1;
+}
+
+/* Edit/Info/Calibration Panels (Floating Glass Cards) */
+.room-edit-form,
+.room-info-panel,
+.calibration-panel {
+    position: absolute;
+    background: rgba(30, 41, 59, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 1.25rem;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 200;
+    color: #f8fafc;
+}
+
+/* Bottom positioned forms */
+.room-edit-form,
+.room-info-panel {
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 340px;
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Top Right positioned calibration panel */
+.calibration-panel {
+    top: 5rem;
+    right: 2rem;
+    width: 300px;
+}
+
+.room-edit-form h3,
+.room-info-panel h3,
+.calibration-panel h4 {
+    margin: 0 0 1rem 0;
+    color: #f8fafc;
+    font-size: 1.1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.room-category {
+    color: #94a3b8;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+}
+
+/* Forms */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-label {
+    display: block;
+    font-size: 0.875rem;
+    color: #cbd5e1;
+    margin-bottom: 0.35rem;
+    font-weight: 500;
+}
+
+.form-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+}
+
+.control-group {
+    margin-bottom: 0.75rem;
+}
+
+.control-group label {
+    display: block;
+    font-size: 0.8rem;
+    color: #cbd5e1;
+    margin-bottom: 0.25rem;
+}
+
+.control-group input[type="range"] {
+    width: 100%;
+    cursor: pointer;
+}
+
+/* Scanner Overlay */
+.detecting-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.8);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 500;
+    backdrop-filter: blur(4px);
+}
+
+.detecting-scanner {
+    width: 100%;
+    height: 4px;
+    background: #3b82f6;
+    box-shadow: 0 0 20px #3b82f6;
+    position: absolute;
+    animation: scan 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes scan {
+    0% {
+        top: 0;
+        opacity: 0;
+    }
+
+    15% {
+        opacity: 1;
+    }
+
+    85% {
+        opacity: 1;
+    }
+
+    100% {
+        top: 100%;
+        opacity: 0;
+    }
+}
+
+.detecting-text {
+    text-align: center;
+    color: white;
+    z-index: 501;
+}
+
+.detecting-icon {
+    font-size: 3rem;
+    display: block;
+    margin-bottom: 1rem;
+    animation: pulse 1.5s infinite;
+}
+
+.detecting-hint {
+    color: #94a3b8;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+}
+
+/* Transform Box & Handles */
+.transform-box {
+    position: absolute;
+    border: 2px dashed #60a5fa;
+    background: rgba(59, 130, 246, 0.05);
+    /* Very light blue fill */
+    z-index: 150;
+    pointer-events: all;
+    /* Allow dragging anywhere in box */
+    cursor: grab;
+}
+
+.transform-box:active {
+    cursor: grabbing;
+}
+
+.resize-handle {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: white;
+    border: 2px solid #3b82f6;
+    border-radius: 50%;
+    z-index: 160;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: transform 0.1s;
+}
+
+.resize-handle:hover {
+    transform: scale(1.2);
+    background: #eff6ff;
+}
+
+.handle-n {
+    top: -6px;
+    left: 50%;
+    margin-left: -6px;
+    cursor: ns-resize;
+}
+
+.handle-s {
+    bottom: -6px;
+    left: 50%;
+    margin-left: -6px;
+    cursor: ns-resize;
+}
+
+.handle-e {
+    right: -6px;
+    top: 50%;
+    margin-top: -6px;
+    cursor: ew-resize;
+}
+
+.handle-w {
+    left: -6px;
+    top: 50%;
+    margin-top: -6px;
+    cursor: ew-resize;
+}
+
+.handle-ne {
+    top: -6px;
+    right: -6px;
+    cursor: nesw-resize;
+}
+
+.handle-nw {
+    top: -6px;
+    left: -6px;
+    cursor: nwse-resize;
+}
+
+.handle-se {
+    bottom: -6px;
+    right: -6px;
+    cursor: nwse-resize;
+}
+
+.handle-sw {
+    bottom: -6px;
+    left: -6px;
+    cursor: nesw-resize;
+}
+
+/* Editor Footer */
+.editor-footer {
+    background: rgba(30, 41, 59, 0.95);
+    padding: 0.75rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.875rem;
+    color: #94a3b8;
+    flex-shrink: 0;
+}
+
+.editor-legend {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.legend-dot.classroom {
+    background: rgba(59, 130, 246, 0.8);
+}
+
+.legend-dot.office {
+    background: rgba(139, 92, 246, 0.8);
+}
+
+.legend-dot.special {
+    background: rgba(16, 185, 129, 0.8);
+}
+
+.legend-dot.utility {
+    background: rgba(107, 114, 128, 0.8);
+}
+
+/* Auto Detect Success Notification */
+.auto-detect-success {
+    position: absolute;
+    top: 4rem;
+    /* Below header */
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+    z-index: 2000;
+    pointer-events: all;
+    /* Allow closing */
+    font-size: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.auto-detect-success span {
+    font-size: 1.5rem;
+}
+
+/* Animations */
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+@keyframes pulse-border {
+    0% {
+        border-color: rgba(251, 191, 36, 0.4);
+    }
+
+    50% {
+        border-color: rgba(251, 191, 36, 1);
+    }
+
+    100% {
+        border-color: rgba(251, 191, 36, 0.4);
+    }
+}
+
+.animate-fadeIn {
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+/* Tool Switcher & Buttons */
+.tool-switcher button {
+    transition: all 0.2s;
+}
+
+.tool-switcher button:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.tool-switcher button.active {
+    background: #3b82f6 !important;
+    color: white;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+.btn-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    width: 32px;
+    height: 32px;
+}
+
+/* Calibration specific */
+.calibration-point {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    background: #ef4444;
+    border: 2px solid white;
+    border-radius: 50%;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 12px;
+    z-index: 1000;
+    pointer-events: none;
+    margin-left: -12px;
+    /* Center alignment */
+    margin-top: -12px;
+}

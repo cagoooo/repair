@@ -1,0 +1,299 @@
+.interactive-map-container {
+    position: relative;
+    width: 100%;
+}
+
+.map-edit-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 100;
+
+    /* Improved Visibility Styles */
+    background-color: #3b82f6;
+    /* Bright Blue */
+    color: white;
+    border: 2px solid white;
+    /* White border for contrast against dark maps */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    /* Strong shadow */
+
+    font-weight: 600;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 30px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.map-edit-btn:hover {
+    background-color: #2563eb;
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+}
+
+.map-edit-btn:active {
+    transform: translateY(0) scale(0.98);
+}
+
+.map-wrapper {
+    position: relative;
+    width: 100%;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    min-height: 400px;
+}
+
+.map-image {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.map-placeholder {
+    width: 100%;
+    min-height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--bg-secondary), var(--bg-card));
+}
+
+.placeholder-content {
+    text-align: center;
+    padding: var(--spacing-xl);
+}
+
+.placeholder-icon {
+    font-size: 4rem;
+    display: block;
+    margin-bottom: var(--spacing-md);
+}
+
+.placeholder-content h3 {
+    margin-bottom: var(--spacing-sm);
+}
+
+.placeholder-content p {
+    color: var(--text-secondary);
+}
+
+/* 教室互動區域 */
+.room-interactive {
+    position: absolute;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+    border: 2px solid transparent;
+}
+
+.room-interactive:hover {
+    transform: scale(1.02);
+    z-index: 20;
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+}
+
+.room-interactive.status-normal {
+    background: var(--room-normal);
+    border-color: rgba(16, 185, 129, 0.5);
+}
+
+.room-interactive.status-normal:hover {
+    background: rgba(16, 185, 129, 0.5);
+}
+
+.room-interactive.status-pending {
+    background: var(--room-pending);
+    border-color: rgba(245, 158, 11, 0.7);
+}
+
+.room-interactive.status-pending:hover {
+    background: rgba(245, 158, 11, 0.6);
+}
+
+.room-interactive.status-urgent {
+    background: var(--room-urgent);
+    border-color: rgba(239, 68, 68, 0.7);
+    animation: pulse 2s infinite;
+}
+
+.room-interactive.status-urgent:hover {
+    background: rgba(239, 68, 68, 0.7);
+}
+
+
+.room-label-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    padding: 2px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.room-label {
+    color: white;
+    font-weight: bold;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 4px rgba(0, 0, 0, 0.7);
+    text-align: center;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.room-label.code {
+    font-size: clamp(0.7rem, 2.5vw, 1.2rem);
+    /* Larger, responsive font size */
+    background: rgba(0, 0, 0, 0.4);
+    padding: 0 6px;
+    border-radius: 4px;
+    margin-bottom: 2px;
+    letter-spacing: 0.5px;
+}
+
+.room-label.name {
+    font-size: clamp(0.6rem, 2vw, 0.9rem);
+    opacity: 0.95;
+    margin-top: 2px;
+}
+
+.repair-count {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: var(--status-urgent);
+    color: white;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* 圖例 */
+.map-legend {
+    display: flex;
+    gap: var(--spacing-lg);
+    padding: var(--spacing-md);
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.legend-dot.normal {
+    background: var(--status-completed);
+}
+
+.legend-dot.pending {
+    background: var(--status-pending);
+}
+
+.legend-dot.urgent {
+    background: var(--status-urgent);
+}
+
+/* Tooltip */
+.room-tooltip {
+    position: fixed;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    z-index: 1000;
+    pointer-events: none;
+    box-shadow: var(--shadow-lg);
+    min-width: 150px;
+    animation: fadeIn var(--transition-fast) ease-out;
+}
+
+.tooltip-header {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: baseline;
+    margin-bottom: var(--spacing-xs);
+}
+
+.tooltip-header strong {
+    font-size: 1rem;
+}
+
+.tooltip-header span {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.tooltip-stats {
+    margin-bottom: var(--spacing-xs);
+}
+
+.stat-item {
+    font-size: 0.8rem;
+    padding: 2px 0;
+}
+
+.stat-item.pending {
+    color: var(--status-pending);
+}
+
+.stat-item.in-progress {
+    color: var(--status-in-progress);
+}
+
+.stat-item.normal {
+    color: var(--status-completed);
+}
+
+.tooltip-hint {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    border-top: 1px solid var(--border-color);
+    padding-top: var(--spacing-xs);
+    margin-top: var(--spacing-xs);
+}
+
+@media (max-width: 768px) {
+    .room-code {
+        font-size: 0.6rem;
+        padding: 1px 4px;
+    }
+
+    .repair-count {
+        width: 16px;
+        height: 16px;
+        font-size: 0.6rem;
+    }
+
+    .map-legend {
+        gap: var(--spacing-md);
+    }
+}

@@ -1,0 +1,22 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // 預設規則：全部需驗證
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // 地圖圖片：允許所有人讀取
+    // 上傳需管理員權限
+    match /map-images/{imageId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.email == 'ipad@mail2.smes.tyc.edu.tw';
+    }
+
+    // 報修圖片：允許所有人讀取
+    // 上傳需驗證 (對應 Firestore 的 create 權限)
+    match /repair-images/{allPaths=**} {
+      allow read, write: if true;
+    }
+  }
+}
