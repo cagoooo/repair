@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { REPAIR_CATEGORIES, REPAIR_PRIORITY } from '../data/repairCategories';
 import { useToast } from './Toast';
+import { sanitizeText, isValidImageUrl } from '../utils/sanitize';
 import './RepairForm.css';
 
 /**
@@ -152,6 +153,9 @@ function RepairForm({ room, onSubmit, onClose }) {
                 }
             }
 
+            // 🛡️ 過濾不合法的圖片 URL
+            const safeImageUrls = imageUrls.filter(url => isValidImageUrl(url));
+
             const repairData = {
                 roomId: room.id,
                 roomCode: room.code,
@@ -159,12 +163,12 @@ function RepairForm({ room, onSubmit, onClose }) {
                 category: formData.category,
                 itemType: formData.itemType,
                 itemName: getItems().find(i => i.id === formData.itemType)?.name || '',
-                description: formData.description.trim(),
+                description: sanitizeText(formData.description.trim()),
                 priority: formData.priority,
-                reporterName: formData.reporterName.trim(),
-                reporterContact: formData.reporterContact.trim(),
-                imageUrl: imageUrls[0] || null, // 向後兼容：保留第一張
-                imageUrls: imageUrls, // 新增：多圖陣列
+                reporterName: sanitizeText(formData.reporterName.trim()),
+                reporterContact: sanitizeText(formData.reporterContact.trim()),
+                imageUrl: safeImageUrls[0] || null, // 向後兼容：保留第一張
+                imageUrls: safeImageUrls, // 新增：多圖陣列
                 status: 'pending',
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()

@@ -1,22 +1,36 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // 預設規則：全部需驗證
-    match /{allPaths=**} {
-      allow read, write: if request.auth != null;
-    }
-    
-    // 地圖圖片：允許所有人讀取
-    // 上傳需管理員權限
+
+    // ============================
+    // 🗺️ 地圖圖片
+    // ============================
     match /map-images/{imageId} {
+      // 任何人可讀取
       allow read: if true;
-      allow write: if request.auth != null && request.auth.token.email == 'ipad@mail2.smes.tyc.edu.tw';
+      // 僅管理員可上傳，限制大小 5MB、僅限圖片
+      allow write: if request.auth != null
+        && request.auth.token.email == 'ipad@mail2.smes.tyc.edu.tw'
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
     }
 
-    // 報修圖片：允許所有人讀取
-    // 上傳需驗證 (對應 Firestore 的 create 權限)
+    // ============================
+    // 📸 報修圖片
+    // ============================
     match /repair-images/{allPaths=**} {
-      allow read, write: if true;
+      // 任何人可讀取（查看報修照片）
+      allow read: if true;
+      // 上傳限制：僅限圖片、單檔 ≤ 2MB
+      allow write: if request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // ============================
+    // 🚫 預設拒絕
+    // ============================
+    match /{allPaths=**} {
+      allow read, write: if false;
     }
   }
 }

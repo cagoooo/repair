@@ -5,6 +5,10 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   base: '/repair/',
   plugins: [react()],
+  test: {
+    environment: 'jsdom',
+    globals: true
+  },
   build: {
     rollupOptions: {
       output: {
