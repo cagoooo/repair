@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { REPAIR_CATEGORIES, REPAIR_PRIORITY } from '../data/repairCategories';
+import { useToast } from './Toast';
 import './RepairForm.css';
 
 /**
  * 報修表單元件
  */
 function RepairForm({ room, onSubmit, onClose }) {
+    const toast = useToast();
     const [formData, setFormData] = useState({
         category: '',
         itemType: '',
@@ -70,18 +72,18 @@ function RepairForm({ room, onSubmit, onClose }) {
 
         const remaining = MAX_IMAGES - selectedImages.length;
         if (remaining <= 0) {
-            alert(`最多只能上傳 ${MAX_IMAGES} 張照片`);
+            toast.warning(`最多只能上傳 ${MAX_IMAGES} 張照片`);
             return;
         }
 
         const validFiles = [];
         for (const file of files.slice(0, remaining)) {
             if (!file.type.startsWith('image/')) {
-                alert(`「${file.name}」不是圖片檔案，已跳過`);
+                toast.warning(`「${file.name}」不是圖片檔案，已跳過`);
                 continue;
             }
             if (file.size > 5 * 1024 * 1024) {
-                alert(`「${file.name}」超過 5MB 限制，已跳過`);
+                toast.warning(`「${file.name}」超過 5MB 限制，已跳過`);
                 continue;
             }
             validFiles.push(file);
@@ -136,7 +138,7 @@ function RepairForm({ room, onSubmit, onClose }) {
                     }
                 } catch (storageError) {
                     console.error('Storage upload failed:', storageError);
-                    alert(`部分圖片上傳失敗 (${storageError.code})，將繼續提交報修單。`);
+                    toast.warning(`部分圖片上傳失敗 (${storageError.code})，將繼續提交報修單。`);
                 }
             }
 

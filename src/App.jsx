@@ -5,6 +5,8 @@ import MapUploader from './components/MapUploader';
 import RepairForm from './components/RepairForm';
 import RepairList from './components/RepairList';
 import AdminDashboard from './components/AdminDashboard';
+import Skeleton from './components/Skeleton';
+import { useToast } from './components/Toast';
 import './App.css';
 
 // 本地儲存 key
@@ -23,11 +25,15 @@ import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from
 import { sendLineNotification } from './services/notificationService';
 
 function App() {
+  // Toast 通知
+  const toast = useToast();
+
   // 狀態
   const [activeTab, setActiveTab] = useState('map');
   const [mapImage, setMapImage] = useState(null);
   const [rooms, setRooms] = useState([]);
   const [repairs, setRepairs] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [showEditor, setShowEditor] = useState(false);
   const [showRepairForm, setShowRepairForm] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -93,13 +99,13 @@ function App() {
           gasProxy: gasProxy,
           updatedAt: new Date().toISOString()
         });
-        alert('✅ 通知設定已儲存到雲端！(跟隨帳號，換電腦也有效)');
+        toast.success('通知設定已儲存到雲端！(跟隨帳號，換電腦也有效)');
       } catch (error) {
         console.error('儲存到雲端失敗:', error);
-        alert('⚠️ 已儲存到本地，但雲端同步失敗：' + error.message);
+        toast.warning('已儲存到本地，但雲端同步失敗：' + error.message);
       }
     } else {
-      alert('⚠️ 已儲存到本地 (未登入管理員或資料庫未連線，無法同步到雲端)');
+      toast.warning('已儲存到本地 (未登入管理員或資料庫未連線，無法同步到雲端)');
     }
   };
 
@@ -122,7 +128,7 @@ function App() {
   // 處理登入
   const handleLogin = async () => {
     if (!auth) {
-      alert('⚠️ Firebase Auth 未初始化，請檢查 .env 設定。');
+      toast.error('Firebase Auth 未初始化，請檢查 .env 設定');
       return;
     }
     try {
@@ -130,7 +136,7 @@ function App() {
       await signInWithPopup(auth, provider);
     } catch (error) {
       console.error('登入失敗:', error);
-      alert('登入失敗: ' + error.message);
+      toast.error('登入失敗: ' + error.message);
     }
   };
 
@@ -206,7 +212,10 @@ function App() {
 
   // 監聽 Firestore 報修資料變更 (Real-time)
   useEffect(() => {
-    if (!db) return;
+    if (!db) {
+      setIsLoading(false);
+      return;
+    }
 
     const repairsRef = collection(db, 'repairs');
     const q = query(repairsRef, orderBy('createdAt', 'desc'));
@@ -222,7 +231,6 @@ function App() {
             const parsed = JSON.parse(localRepairs);
             if (parsed.length > 0) {
               console.log('🔄 偵測到本地資料，正在遷移至雲端...');
-              // 注意：這裡只做簡單處理，量大應分批
               const batch = writeBatch(db);
               parsed.forEach(repair => {
                 const newDocRef = doc(collection(db, 'repairs'));
@@ -234,7 +242,6 @@ function App() {
               });
               await batch.commit();
               console.log('✅ 本地資料遷移完成！');
-              // 選擇性清除本地：localStorage.removeItem(STORAGE_KEYS.REPAIRS);
             }
           } catch (e) {
             console.error('資料遷移失敗:', e);
@@ -243,12 +250,22 @@ function App() {
       }
 
       setRepairs(repairsData);
+      setIsLoading(false);
     }, (error) => {
       console.error("讀取報修資料錯誤:", error);
+      setIsLoading(false);
     });
 
     return () => unsubscribe();
-  }, [db]); // 當 db 初始化後執行
+  }, [db]);
+
+  // 🔔 動態頁面標題：顯示待處理報修數
+  useEffect(() => {
+    const pendingCount = repairs.filter(r => r.status === 'pending').length;
+    document.title = pendingCount > 0
+      ? `(${pendingCount}) 校園報修系統`
+      : '校園報修系統 - 智慧化報修管理';
+  }, [repairs]);
 
 
   // 處理地圖上傳
@@ -256,7 +273,7 @@ function App() {
     // 如果是初始設定 (showSetup === true)，允許上傳
     // 否則必須是管理員
     if (!showSetup && !isAdmin) {
-      alert('權限不足：僅管理員可更換地圖');
+      toast.warning('權限不足：僅管理員可更換地圖');
       return;
     }
     setMapImage(imageData);
@@ -273,11 +290,11 @@ function App() {
   // 儲存地圖設定到雲端
   const handleSaveMapConfig = async (newRooms) => {
     if (!isAdmin) {
-      alert('權限不足：僅管理員可儲存設定');
+      toast.warning('權限不足：僅管理員可儲存設定');
       return;
     }
     if (!db) {
-      alert('⚠️ 未設定 Firebase 連線，僅儲存於本地瀏覽器。\n若要啟用雲端同步，請聯絡管理員設定環境變數。');
+      toast.warning('未設定 Firebase 連線，僅儲存於本地瀏覽器。若要啟用雲端同步，請聯絡管理員設定環境變數。');
       return;
     }
     try {
@@ -286,10 +303,10 @@ function App() {
         rooms: newRooms,
         updatedAt: new Date().toISOString()
       });
-      alert('✅ 地圖設定已儲存到雲端！所有使用者重整後皆可看到新配置。');
+      toast.success('地圖設定已儲存到雲端！所有使用者重整後皆可看到新配置。');
     } catch (error) {
       console.error('儲存失敗:', error);
-      alert('❌ 儲存失敗：' + error.message);
+      toast.error('儲存失敗：' + error.message);
     }
   };
 
@@ -302,7 +319,7 @@ function App() {
   // 提交報修
   // 提交報修 (Firestore)
   const handleSubmitRepair = async (repairData) => {
-    if (!db) { alert('無資料庫連線'); return; }
+    if (!db) { toast.error('無資料庫連線'); return; }
     try {
       await addDoc(collection(db, 'repairs'), {
         ...repairData,
@@ -327,7 +344,7 @@ function App() {
       }
     } catch (e) {
       console.error('報修提交失敗:', e);
-      alert('報修提交失敗');
+      toast.error('報修提交失敗');
     }
   };
 
@@ -368,7 +385,7 @@ function App() {
   // 刪除報修 (Firestore)
   const handleDeleteRepair = async (repairId) => {
     if (!isAdmin) {
-      alert('權限不足：僅管理員可刪除報修單');
+      toast.warning('權限不足：僅管理員可刪除報修單');
       return;
     }
     if (!confirm('確定要刪除此報修單嗎？')) return;
@@ -383,7 +400,7 @@ function App() {
   // 清除所有資料
   const handleClearData = () => {
     if (!isAdmin) {
-      alert('權限不足：僅管理員可清除資料');
+      toast.warning('權限不足：僅管理員可清除資料');
       return;
     }
     if (confirm('確定要清除所有資料嗎？此操作無法復原。')) {
@@ -480,18 +497,25 @@ function App() {
         {/* 報修列表頁面 */}
         {!showSetup && activeTab === 'list' && (
           <div className="list-page">
-            <RepairList
-              repairs={repairs}
-              isAdmin={isAdmin}
-              onUpdateStatus={handleUpdateStatus}
-              onAddComment={handleAddComment}
-              onDeleteRepair={handleDeleteRepair}
-              onViewRoom={(roomId) => {
-                const room = rooms.find(r => r.id === roomId);
-                if (room) setSelectedRoom(room);
-                setActiveTab('map');
-              }}
-            />
+            {isLoading ? (
+              <div className="animate-fadeIn" style={{ padding: '2rem 0' }}>
+                <Skeleton type="stat" count={4} />
+                <Skeleton type="card" count={4} />
+              </div>
+            ) : (
+              <RepairList
+                repairs={repairs}
+                isAdmin={isAdmin}
+                onUpdateStatus={handleUpdateStatus}
+                onAddComment={handleAddComment}
+                onDeleteRepair={handleDeleteRepair}
+                onViewRoom={(roomId) => {
+                  const room = rooms.find(r => r.id === roomId);
+                  if (room) setSelectedRoom(room);
+                  setActiveTab('map');
+                }}
+              />
+            )}
           </div>
         )}
 
@@ -630,8 +654,8 @@ function App() {
                           repairData: mockRepairData
                         });
 
-                        if (res.success) alert('✅ 測試發送成功！\n請檢查手機是否收到「卡片式」通知。');
-                        else alert('❌ 測試失敗：' + res.error);
+                        if (res.success) toast.success('測試發送成功！請檢查手機是否收到「卡片式」通知。');
+                        else toast.error('測試失敗：' + res.error);
                       }}>
                         🧪 測試發送 (Flex Message)
                       </button>

@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { REPAIR_CATEGORIES, REPAIR_STATUS, REPAIR_PRIORITY } from '../data/repairCategories';
+import { useToast } from './Toast';
 import './RepairList.css';
 
 /**
@@ -8,6 +9,7 @@ import './RepairList.css';
  * 顯示所有報修單，支援篩選與狀態更新
  */
 function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment, onDeleteRepair }) {
+    const toast = useToast();
     const [filter, setFilter] = useState({
         category: 'all',
         status: 'all',
@@ -157,7 +159,7 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
             }
         } catch (err) {
             console.error('Error adding comment:', err);
-            alert('備註新增失敗');
+            toast.error('備註新增失敗');
         } finally {
             setCommentLoading(false);
         }

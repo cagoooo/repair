@@ -1,0 +1,36 @@
+{
+    "name": "校園報修系統",
+    "short_name": "報修系統",
+    "description": "提供全校師生快速、便捷的線上報修服務，即時追蹤進度，提升校園修繕效率。",
+    "start_url": "./",
+    "scope": "./",
+    "display": "standalone",
+    "background_color": "#0f172a",
+    "theme_color": "#0f172a",
+    "orientation": "portrait-primary",
+    "categories": [
+        "utilities",
+        "productivity"
+    ],
+    "lang": "zh-TW",
+    "icons": [
+        {
+            "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏫</text></svg>",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}
