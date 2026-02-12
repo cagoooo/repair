@@ -362,9 +362,7 @@ function App() {
         status: 'pending',
         createdAt: new Date().toISOString()
       });
-      // 不需手動 setRepairs，onSnapshot 會自動更新
-      setShowRepairForm(false);
-      setSelectedRoom(null);
+      // 不需在此關閉表單，交給 RepairForm 內部的成功畫面處理
 
       // 發送 Line 通知
       try {

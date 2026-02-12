@@ -529,6 +529,30 @@ h3 {
     white-space: pre-wrap;
   }
 
+  /* 照片區樣式 */
+  .print-photo-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .print-photo-item {
+    border: 1px solid #000;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f9f9f9;
+  }
+
+  .print-photo-item img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+
   .print-footer-section {
     display: flex;
     justify-content: space-between;

@@ -19,6 +19,7 @@ function RepairForm({ room, onSubmit, onClose }) {
     });
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isSuccess, setIsSuccess] = useState(false);
 
     // 取得當前類別的項目列表
     const getItems = () => {
@@ -175,6 +176,7 @@ function RepairForm({ room, onSubmit, onClose }) {
             };
 
             await onSubmit(repairData);
+            setIsSuccess(true);
         } catch (error) {
             console.error('提交報修失敗:', error);
             setErrors({ submit: '提交失敗，請稍後再試: ' + error.message });
@@ -208,171 +210,196 @@ function RepairForm({ room, onSubmit, onClose }) {
                     <button className="close-btn" onClick={onClose}>✕</button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="repair-form">
-                    {/* 報修類別 */}
-                    <div className="form-group">
-                        <label className="form-label">報修類別 *</label>
-                        <div className="category-buttons">
-                            {Object.values(REPAIR_CATEGORIES).map((cat) => (
-                                <button
-                                    key={cat.id}
-                                    type="button"
-                                    className={`category-btn ${formData.category === cat.id ? 'active' : ''}`}
-                                    style={{
-                                        '--cat-color': cat.color,
-                                        '--cat-color-rgb': hexToRgb(cat.color)
-                                    }}
-                                    onClick={() => handleChange('category', cat.id)}
-                                >
-                                    <span className="cat-icon">{cat.icon}</span>
-                                    <span className="cat-name">{cat.name}</span>
-                                </button>
-                            ))}
-                        </div>
-                        {errors.category && <span className="error-msg">{errors.category}</span>}
-                    </div>
-
-                    {/* 報修項目 */}
-                    {formData.category && (
-                        <div className="form-group animate-fadeIn">
-                            <label className="form-label">報修項目 *</label>
-                            <div className="item-grid">
-                                {getItems().map((item) => (
+                {!isSuccess && (
+                    <form onSubmit={handleSubmit} className="repair-form">
+                        {/* 報修類別 */}
+                        <div className="form-group">
+                            <label className="form-label">報修類別 *</label>
+                            <div className="category-buttons">
+                                {Object.values(REPAIR_CATEGORIES).map((cat) => (
                                     <button
-                                        key={item.id}
+                                        key={cat.id}
                                         type="button"
-                                        className={`item-btn ${formData.itemType === item.id ? 'active' : ''}`}
-                                        onClick={() => handleChange('itemType', item.id)}
+                                        className={`category-btn ${formData.category === cat.id ? 'active' : ''}`}
+                                        style={{
+                                            '--cat-color': cat.color,
+                                            '--cat-color-rgb': hexToRgb(cat.color)
+                                        }}
+                                        onClick={() => handleChange('category', cat.id)}
                                     >
-                                        <span className="item-icon">{item.icon}</span>
-                                        <span className="item-name">{item.name}</span>
+                                        <span className="cat-icon">{cat.icon}</span>
+                                        <span className="cat-name">{cat.name}</span>
                                     </button>
                                 ))}
                             </div>
-                            {errors.itemType && <span className="error-msg">{errors.itemType}</span>}
+                            {errors.category && <span className="error-msg">{errors.category}</span>}
                         </div>
-                    )}
 
-                    {/* 問題描述 */}
-                    <div className="form-group">
-                        <label className="form-label">問題描述 *</label>
-                        <textarea
-                            className="form-textarea"
-                            placeholder="請詳細說明故障狀況，例如：電腦開機後無法進入桌面，一直卡在載入畫面..."
-                            value={formData.description}
-                            onChange={(e) => handleChange('description', e.target.value)}
-                            rows={4}
-                        />
-                        {errors.description && <span className="error-msg">{errors.description}</span>}
-                    </div>
-
-                    {/* 優先順序 */}
-                    <div className="form-group">
-                        <label className="form-label">緊急程度</label>
-                        <div className="priority-buttons">
-                            {Object.values(REPAIR_PRIORITY).map((p) => (
-                                <button
-                                    key={p.id}
-                                    type="button"
-                                    className={`priority-btn ${formData.priority === p.id ? 'active' : ''}`}
-                                    style={{ '--priority-color': p.color }}
-                                    onClick={() => handleChange('priority', p.id)}
-                                >
-                                    <span>{p.icon}</span>
-                                    <span>{p.name}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* 申報人資訊 */}
-                    <div className="form-row">
-                        <div className="form-group">
-                            <label className="form-label">申報人姓名 *</label>
-                            <input
-                                type="text"
-                                className="form-input"
-                                placeholder="例如：王老師"
-                                value={formData.reporterName}
-                                onChange={(e) => handleChange('reporterName', e.target.value)}
-                            />
-                            {errors.reporterName && <span className="error-msg">{errors.reporterName}</span>}
-                        </div>
-                        <div className="form-group">
-                            <label className="form-label">聯絡方式</label>
-                            <input
-                                type="text"
-                                className="form-input"
-                                placeholder="例如：分機 123"
-                                value={formData.reporterContact}
-                                onChange={(e) => handleChange('reporterContact', e.target.value)}
-                            />
-                        </div>
-                    </div>
-
-                    {/* 多圖上傳 */}
-                    <div className="form-group">
-                        <label className="form-label">現場照片 (選填，最多 {MAX_IMAGES} 張)</label>
-                        <div className="image-upload-container multi">
-                            <input
-                                type="file"
-                                id="repair-image"
-                                accept="image/*"
-                                multiple
-                                onChange={handleImageChange}
-                                style={{ display: 'none' }}
-                            />
-                            <div className="image-previews-grid">
-                                {previewUrls.map((url, idx) => (
-                                    <div key={idx} className="image-preview-item">
-                                        <img src={url} alt={`Preview ${idx + 1}`} />
+                        {/* 報修項目 */}
+                        {formData.category && (
+                            <div className="form-group animate-fadeIn">
+                                <label className="form-label">報修項目 *</label>
+                                <div className="item-grid">
+                                    {getItems().map((item) => (
                                         <button
+                                            key={item.id}
                                             type="button"
-                                            className="remove-image-btn"
-                                            onClick={() => handleRemoveImage(idx)}
+                                            className={`item-btn ${formData.itemType === item.id ? 'active' : ''}`}
+                                            onClick={() => handleChange('itemType', item.id)}
                                         >
-                                            ✕
+                                            <span className="item-icon">{item.icon}</span>
+                                            <span className="item-name">{item.name}</span>
                                         </button>
-                                    </div>
+                                    ))}
+                                </div>
+                                {errors.itemType && <span className="error-msg">{errors.itemType}</span>}
+                            </div>
+                        )}
+
+                        {/* 問題描述 */}
+                        <div className="form-group">
+                            <label className="form-label">問題描述 *</label>
+                            <textarea
+                                className="form-textarea"
+                                placeholder="請詳細說明故障狀況，例如：電腦開機後無法進入桌面，一直卡在載入畫面..."
+                                value={formData.description}
+                                onChange={(e) => handleChange('description', e.target.value)}
+                                rows={4}
+                            />
+                            {errors.description && <span className="error-msg">{errors.description}</span>}
+                        </div>
+
+                        {/* 優先順序 */}
+                        <div className="form-group">
+                            <label className="form-label">緊急程度</label>
+                            <div className="priority-buttons">
+                                {Object.values(REPAIR_PRIORITY).map((p) => (
+                                    <button
+                                        key={p.id}
+                                        type="button"
+                                        className={`priority-btn ${formData.priority === p.id ? 'active' : ''}`}
+                                        style={{ '--priority-color': p.color }}
+                                        onClick={() => handleChange('priority', p.id)}
+                                    >
+                                        <span>{p.icon}</span>
+                                        <span>{p.name}</span>
+                                    </button>
                                 ))}
-                                {selectedImages.length < MAX_IMAGES && (
-                                    <label htmlFor="repair-image" className="image-upload-btn add-more">
-                                        <div className="upload-placeholder">
-                                            <span className="upload-icon">📷</span>
-                                            <span>{selectedImages.length === 0 ? '上傳照片' : '新增'}</span>
-                                        </div>
-                                    </label>
-                                )}
                             </div>
                         </div>
-                    </div>
 
-                    {/* 錯誤訊息 */}
-                    {errors.submit && (
-                        <div className="submit-error">
-                            ⚠️ {errors.submit}
+                        {/* 申報人資訊 */}
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label className="form-label">申報人姓名 *</label>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    placeholder="例如：王老師"
+                                    value={formData.reporterName}
+                                    onChange={(e) => handleChange('reporterName', e.target.value)}
+                                />
+                                {errors.reporterName && <span className="error-msg">{errors.reporterName}</span>}
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">聯絡方式</label>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    placeholder="例如：分機 123"
+                                    value={formData.reporterContact}
+                                    onChange={(e) => handleChange('reporterContact', e.target.value)}
+                                />
+                            </div>
                         </div>
-                    )}
 
-                    {/* 提交按鈕 */}
-                    <div className="form-actions">
-                        <button
-                            type="button"
-                            className="btn btn-secondary"
-                            onClick={onClose}
-                            disabled={isSubmitting}
-                        >
-                            取消
-                        </button>
-                        <button
-                            type="submit"
-                            className="btn btn-primary"
-                            disabled={isSubmitting}
-                        >
-                            {isSubmitting ? '提交中...' : '📤 提交報修'}
-                        </button>
+                        {/* 多圖上傳 */}
+                        <div className="form-group">
+                            <label className="form-label">現場照片 (選填，最多 {MAX_IMAGES} 張)</label>
+                            <div className="image-upload-container multi">
+                                <input
+                                    type="file"
+                                    id="repair-image"
+                                    accept="image/*"
+                                    multiple
+                                    onChange={handleImageChange}
+                                    style={{ display: 'none' }}
+                                />
+                                <div className="image-previews-grid">
+                                    {previewUrls.map((url, idx) => (
+                                        <div key={idx} className="image-preview-item">
+                                            <img src={url} alt={`Preview ${idx + 1}`} />
+                                            <button
+                                                type="button"
+                                                className="remove-image-btn"
+                                                onClick={() => handleRemoveImage(idx)}
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {selectedImages.length < MAX_IMAGES && (
+                                        <label htmlFor="repair-image" className="image-upload-btn add-more">
+                                            <div className="upload-placeholder">
+                                                <span className="upload-icon">📷</span>
+                                                <span>{selectedImages.length === 0 ? '上傳照片' : '新增'}</span>
+                                            </div>
+                                        </label>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 錯誤訊息 */}
+                        {errors.submit && (
+                            <div className="submit-error">
+                                ⚠️ {errors.submit}
+                            </div>
+                        )}
+
+                        {/* 提交按鈕 */}
+                        <div className="form-actions">
+                            <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={onClose}
+                                disabled={isSubmitting}
+                            >
+                                取消
+                            </button>
+                            <button
+                                type="submit"
+                                className="btn btn-primary"
+                                disabled={isSubmitting}
+                            >
+                                {isSubmitting ? '提交中...' : '📤 提交報修'}
+                            </button>
+                        </div>
+                    </form>
+                )}
+
+                {isSuccess && (
+                    <div className="success-overlay animate-fadeIn">
+                        <div className="success-content">
+                            <div className="success-icon">🎉</div>
+                            <h2>提交成功！</h2>
+                            <p>您的報修申請已送出，管理員將儘速處理。</p>
+                            <div className="success-details">
+                                <div className="detail-item">
+                                    <span className="label">報修位置：</span>
+                                    <span className="value">{room.code} {room.name && room.name.startsWith(room.code) ? room.name.slice(room.code.length).trim() : room.name}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <span className="label">報修時間：</span>
+                                    <span className="value">{new Date().toLocaleString('zh-TW')}</span>
+                                </div>
+                            </div>
+                            <button className="btn btn-primary btn-lg" onClick={onClose}>
+                                我知道了
+                            </button>
+                        </div>
                     </div>
-                </form>
+                )}
             </div>
         </div>
     );

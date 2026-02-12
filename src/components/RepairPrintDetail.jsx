@@ -76,6 +76,26 @@ const RepairPrintDetail = ({ repair }) => {
                     </div>
                 </div>
 
+                {/* 照片區 (如果有圖片) */}
+                {(repair.imageUrl || (repair.imageUrls && repair.imageUrls.length > 0)) && (
+                    <div className="print-section photo-section">
+                        <h3>📷 現場照片</h3>
+                        <div className="print-photo-grid">
+                            {repair.imageUrls && repair.imageUrls.length > 0 ? (
+                                repair.imageUrls.map((url, idx) => (
+                                    <div key={idx} className="print-photo-item">
+                                        <img src={url} alt={`現場照片 ${idx + 1}`} />
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="print-photo-item">
+                                    <img src={repair.imageUrl} alt="現場照片" />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 {/* 簽核區 (底部) */}
                 <div className="print-footer-section">
 
