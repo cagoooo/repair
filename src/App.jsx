@@ -9,6 +9,7 @@ import Skeleton from './components/Skeleton';
 import ScrollToTop from './components/ScrollToTop'; // [NEW] Import ScrollToTop
 import { useToast } from './components/Toast';
 import { checkIsAdmin, DEFAULT_GAS_PROXY, SUBMIT_COOLDOWN_MS } from './config/constants'; // [NEW] Import constants
+import Footer from './components/Footer';
 import './App.css';
 
 // 本地儲存 key
@@ -745,10 +746,7 @@ function App() {
         )}
       </main>
 
-      {/* 頁尾 */}
-      <footer className="app-footer">
-        <p>校園報修系統 © 2026 | Made with ❤️</p>
-      </footer>
+      <Footer />
 
       {/* 地圖編輯器 */}
       {showEditor && mapImage && (

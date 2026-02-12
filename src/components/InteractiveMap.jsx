@@ -185,20 +185,6 @@ function InteractiveMap({ imageUrl, rooms, repairs, onRoomClick, onEditMap }) {
                 </div>
             </div>
 
-            <div className="map-legend">
-                <div className="legend-item">
-                    <span className="legend-dot normal"></span>
-                    <span>正常</span>
-                </div>
-                <div className="legend-item">
-                    <span className="legend-dot pending"></span>
-                    <span>待維修</span>
-                </div>
-                <div className="legend-item">
-                    <span className="legend-dot urgent"></span>
-                    <span>緊急</span>
-                </div>
-            </div>
         </div>
     );
 }
