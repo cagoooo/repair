@@ -120,12 +120,48 @@
 
 .room-interactive.status-urgent {
     background: var(--room-urgent);
-    border-color: rgba(239, 68, 68, 0.7);
-    animation: pulse 2s infinite;
+    border-color: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+    z-index: 10;
+}
+
+/* 多層動態波紋效果 */
+.room-interactive.status-urgent::before,
+.room-interactive.status-urgent::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border: 2px solid var(--status-urgent);
+    border-radius: inherit;
+    opacity: 0;
+    pointer-events: none;
+    z-index: -1;
+}
+
+.room-interactive.status-urgent::before {
+    animation: mapRipple 3s cubic-bezier(0.23, 1, 0.32, 1) infinite;
+}
+
+.room-interactive.status-urgent::after {
+    animation: mapRipple 3s cubic-bezier(0.23, 1, 0.32, 1) infinite 1.5s;
+}
+
+@keyframes mapRipple {
+    0% {
+        transform: scale(1);
+        opacity: 0.8;
+    }
+
+    100% {
+        transform: scale(2.5, 2.2);
+        /* 略微拉長符合教室形狀 */
+        opacity: 0;
+    }
 }
 
 .room-interactive.status-urgent:hover {
-    background: rgba(239, 68, 68, 0.7);
+    background: rgba(239, 68, 68, 0.8);
+    box-shadow: 0 0 30px rgba(239, 68, 68, 0.9);
 }
 
 

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { REPAIR_CATEGORIES, REPAIR_PRIORITY } from '../data/repairCategories';
 import { useToast } from './Toast';
 import { sanitizeText, isValidImageUrl } from '../utils/sanitize';
+import { savePendingUpload } from '../utils/offlineDB';
 import './RepairForm.css';
 
 /**
@@ -119,6 +120,20 @@ function RepairForm({ room, onSubmit, onClose }) {
         console.log('Submitting repair...');
 
         try {
+            // 💡 檢查離線狀態
+            if (!navigator.onLine) {
+                const pendingData = {
+                    room,
+                    formData,
+                    images: selectedImages, // Blob 格式可直接存入 IndexedDB
+                    timestamp: new Date().toISOString()
+                };
+                await savePendingUpload(pendingData);
+                setIsSuccess(true);
+                toast.info('目前處於離線狀態，報修資料已暫存於本地，將於連線後自動同步。');
+                return;
+            }
+
             const imageUrls = [];
 
             // 上傳多張圖片到 Firebase Storage（壓縮後）
@@ -381,9 +396,9 @@ function RepairForm({ room, onSubmit, onClose }) {
                 {isSuccess && (
                     <div className="success-overlay animate-fadeIn">
                         <div className="success-content">
-                            <div className="success-icon">🎉</div>
-                            <h2>提交成功！</h2>
-                            <p>您的報修申請已送出，管理員將儘速處理。</p>
+                            <div className="success-icon">{navigator.onLine ? '🎉' : '💾'}</div>
+                            <h2>{navigator.onLine ? '提交成功！' : '已存於本地'}</h2>
+                            <p>{navigator.onLine ? '您的報修申請已送出，管理員將儘速處理。' : '目前處於離線狀態，資料已安全暫存，連線後將自動同步。'}</p>
                             <div className="success-details">
                                 <div className="detail-item">
                                     <span className="label">報修位置：</span>

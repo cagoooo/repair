@@ -9,6 +9,7 @@ import Skeleton from './components/Skeleton';
 import ScrollToTop from './components/ScrollToTop'; // [NEW] Import ScrollToTop
 import { useToast } from './components/Toast';
 import { checkIsAdmin, DEFAULT_GAS_PROXY, SUBMIT_COOLDOWN_MS } from './config/constants'; // [NEW] Import constants
+import { REPAIR_CATEGORIES } from './data/repairCategories';
 import Footer from './components/Footer';
 import './App.css';
 
@@ -26,6 +27,10 @@ import {
 } from 'firebase/firestore';
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { sendLineNotification } from './services/notificationService';
+import { getPendingUploads, removePendingUpload } from './utils/offlineDB';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from './firebase';
+import imageCompression from 'browser-image-compression';
 
 function App() {
   // Toast 通知
@@ -99,6 +104,101 @@ function App() {
 
     fetchSettings();
   }, [db]);
+
+  // ---------------------------------------------------------
+  // 離線資料同步邏輯
+  // ---------------------------------------------------------
+  const syncOfflineData = async () => {
+    if (!navigator.onLine || !db) return;
+
+    try {
+      const pending = await getPendingUploads();
+      if (pending.length === 0) return;
+
+      console.log(`Found ${pending.length} pending offline reports. Syncing...`);
+      toast.info(`正在同步 ${pending.length} 筆離線報修資料...`);
+
+      for (const item of pending) {
+        const { room, formData, images } = item;
+        const imageUrls = [];
+
+        // 1. 上傳圖片 (如果有)
+        if (images && images.length > 0) {
+          for (const img of images) {
+            try {
+              const compressed = await imageCompression(img, {
+                maxSizeMB: 0.2,
+                maxWidthOrHeight: 800,
+                useWebWorker: true,
+                fileType: 'image/webp'
+              });
+              const storageRef = ref(storage, `repair-images/${Date.now()}_${img.name.replace(/\.\w+$/, '.webp')}`);
+              const snapshot = await uploadBytes(storageRef, compressed);
+              const url = await getDownloadURL(snapshot.ref);
+              imageUrls.push(url);
+            } catch (imgError) {
+              console.error('Offline image upload failed:', imgError);
+            }
+          }
+        }
+
+        // 2. 建立 Firestore 文件
+        const repairData = {
+          roomId: room.id,
+          roomCode: room.code,
+          roomName: room.name,
+          category: formData.category,
+          itemType: formData.itemType,
+          itemName: REPAIR_CATEGORIES[formData.category]?.items.find(i => i.id === formData.itemType)?.name || '',
+          description: formData.description,
+          priority: formData.priority,
+          reporterName: formData.reporterName,
+          reporterContact: formData.reporterContact,
+          imageUrl: imageUrls[0] || null,
+          imageUrls: imageUrls,
+          status: 'pending',
+          createdAt: item.timestamp || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          isSync: true // 標記為同步資料
+        };
+
+        const repairsRef = collection(db, 'repairs');
+        await addDoc(repairsRef, repairData);
+
+        // 3. 發送 Line 通知
+        if (lineToken) {
+          try {
+            await sendLineNotification(repairData, lineToken, lineTargetId, gasProxy);
+          } catch (notifErr) {
+            console.warn('Sync notification failed:', notifErr);
+          }
+        }
+
+        // 4. 移除本地暫存
+        await removePendingUpload(item.id);
+      }
+
+      toast.success('離線資料同步成功！');
+    } catch (error) {
+      console.error('Offline sync failed:', error);
+      toast.error('離線資料同步失敗，將於下此連線時重試。');
+    }
+  };
+
+  // 監聽連線事件
+  useEffect(() => {
+    const handleOnline = () => {
+      console.log('App is online. Triggering sync...');
+      syncOfflineData();
+    };
+
+    window.addEventListener('online', handleOnline);
+    // 元件掛載時也檢查一次
+    if (navigator.onLine) {
+      syncOfflineData();
+    }
+    return () => window.removeEventListener('online', handleOnline);
+  }, [db, lineToken, lineTargetId, gasProxy]);
 
   // 儲存通知設定
   // 儲存通知設定 (到 Firestore + 本地備份)
