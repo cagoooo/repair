@@ -12,25 +12,22 @@ export const SHIMEN_ELEMENTARY_TEMPLATE = {
         // Grid System: X Start=4. Unit=4.5. Gap=0.2.
 
         // --- 三樓 (Row 1) Y=10 ---
-        // --- 三樓 (Row 1) Y=10 ---
         { id: 'W301', code: 'W301', name: '廁所', bounds: { x: 4, y: 10, width: 3, height: 4 }, category: 'utility' },
 
-        { id: 'C301', code: 'C301', name: '圖書館', bounds: { x: 7.2, y: 10, width: 9.2, height: 4 }, category: 'special' }, // 涵蓋 C201+C202
-        { id: 'C303', code: 'C303', name: '一般教室', bounds: { x: 16.6, y: 10, width: 4.5, height: 4 }, category: 'classroom' }, // C203 上方
-        { id: 'C304', code: 'C304', name: '一般教室', bounds: { x: 21.3, y: 10, width: 4.5, height: 4 }, category: 'classroom' }, // C204 上方
+        // 3F 教室配置 (根據底圖文字與 2F/1F 垂直對齊)
+        { id: 'C301', code: 'C301', name: '圖書館', bounds: { x: 7.2, y: 10, width: 18.6, height: 4 }, category: 'special' }, // 對應 C201~C204 (橫跨 4 格)
+        { id: 'C302', code: 'C302', name: '圖書館', bounds: { x: 26, y: 10, width: 9.2, height: 4 }, category: 'special' },   // 對應 C205~C206 (橫跨 2 格)
 
-        { id: 'C302', code: 'C302', name: '圖書館', bounds: { x: 26, y: 10, width: 4.5, height: 4 }, category: 'special' }, // C205 上方
-        { id: 'C305', code: 'C305', name: '圖書館(閱讀)', bounds: { x: 30.7, y: 10, width: 4.5, height: 4 }, category: 'special' }, // C206 上方
+        { id: 'C303', code: 'C303', name: '視聽器材', bounds: { x: 35.4, y: 10, width: 4.5, height: 4 }, category: 'special' }, // 對應 C207
+        { id: 'C304', code: 'C304', name: '智慧教室', bounds: { x: 40.1, y: 10, width: 4.5, height: 4 }, category: 'special' }, // 對應 C208
+        { id: 'C305', code: 'C305', name: '音樂一', bounds: { x: 44.8, y: 10, width: 4.5, height: 4 }, category: 'special' },    // 對應 C209
 
-        { id: 'C303_S', code: 'C303', name: '視聽器材', bounds: { x: 35.4, y: 10, width: 4.5, height: 4 }, category: 'special' }, // C207 上方
-        { id: 'C304_S', code: 'C304', name: '智慧教室', bounds: { x: 40.1, y: 10, width: 4.5, height: 4 }, category: 'special' }, // C208 上方
-        { id: 'C305_S', code: 'C305', name: '音樂一', bounds: { x: 44.8, y: 10, width: 4.5, height: 4 }, category: 'special' }, // C209 上方
-
-        { id: 'C306', code: 'C306', name: '桌球室', bounds: { x: 49.5, y: 10, width: 9.2, height: 4 }, category: 'special' }, // C210 上方 (大格)
+        { id: 'C306', code: 'C306', name: '桌球室', bounds: { x: 49.5, y: 10, width: 9.2, height: 4 }, category: 'special' },   // 對應 C210
 
         { id: 'W302', code: 'W302', name: '廁所', bounds: { x: 58.9, y: 10, width: 3, height: 4 }, category: 'utility' },
 
         // --- 二樓 (Row 2) Y=14.2 ---
+        { id: 'W201', code: 'W201', name: '廁所', bounds: { x: 4, y: 14.2, width: 3, height: 4 }, category: 'utility' },
         { id: 'C201', code: 'C201', name: '律動教室', bounds: { x: 7.2, y: 14.2, width: 4.5, height: 4 }, category: 'special' },
         { id: 'C202', code: 'C202', name: '人事會計', bounds: { x: 11.9, y: 14.2, width: 4.5, height: 4 }, category: 'office' },
         { id: 'C203', code: 'C203', name: '輔導室', bounds: { x: 16.6, y: 14.2, width: 4.5, height: 4 }, category: 'office' },

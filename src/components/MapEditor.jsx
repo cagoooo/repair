@@ -1,6 +1,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { SHIMEN_ELEMENTARY_TEMPLATE, SHIMEN_KINDERGARTEN_TEMPLATE, AVAILABLE_TEMPLATES } from '../data/roomTemplates';
+import { detectRoomsFromImage, convertPixelToPercent } from '../services/visionService';
 import './MapEditor.css';
 
 /**
@@ -179,6 +180,46 @@ const MapEditor = ({ imageUrl, rooms = [], onSave, onClose, onRoomsChange }) => 
         setCalibrationStep(1); // Auto-start 3-point calibration
         setCalibrationClicks([]);
         setTimeout(() => setShowAutoDetectSuccess(false), 3000);
+    };
+
+    /**
+     * 使用 AI Vision 進行全自動辨識
+     */
+    const handleAIVisionScan = async () => {
+        if (!imageRef.current) return;
+
+        setIsAutoDetecting(true);
+        try {
+            // 1. 將圖片轉換為 Base64
+            const canvas = document.createElement('canvas');
+            const img = imageRef.current;
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+
+            // 取得 Base64 (不含 header)
+            const base64Data = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+
+            // 2. 呼叫 Vision API
+            const rawRooms = await detectRoomsFromImage(base64Data);
+
+            // 3. 座標轉換 (像素 -> %)
+            const processedRooms = convertPixelToPercent(rawRooms, img.naturalWidth, img.naturalHeight);
+
+            if (processedRooms.length === 0) {
+                alert('AI 未能辨識出任何教室，請確認圖片文字是否清晰。');
+            } else {
+                onRoomsChange(processedRooms);
+                setShowAutoDetectSuccess(true);
+                setTimeout(() => setShowAutoDetectSuccess(false), 3000);
+            }
+        } catch (error) {
+            console.error('AI Scan Error:', error);
+            alert('AI 辨識失敗: ' + error.message);
+        } finally {
+            setIsAutoDetecting(false);
+        }
     };
 
     const applyCalibration = () => {
@@ -712,11 +753,12 @@ const MapEditor = ({ imageUrl, rooms = [], onSave, onClose, onRoomsChange }) => 
                                     </button>
                                 </div>
 
-                                <div className="dropdown-container">
+                                <div className="dropdown-container" style={{ display: 'flex', gap: '8px' }}>
                                     <button
                                         className={`btn btn-primary auto-detect-btn ${isAutoDetecting ? 'loading' : ''}`}
                                         onClick={() => handleAutoDetect(AVAILABLE_TEMPLATES[0])}
                                         disabled={isAutoDetecting}
+                                        title="使用預設的學校配置模板（快速且精確）"
                                     >
                                         {isAutoDetecting ? (
                                             <>
@@ -724,7 +766,22 @@ const MapEditor = ({ imageUrl, rooms = [], onSave, onClose, onRoomsChange }) => 
                                                 辨識中...
                                             </>
                                         ) : (
-                                            <>🤖 自動辨識教室</>
+                                            <>📋 載入模板</>
+                                        )}
+                                    </button>
+                                    <button
+                                        className={`btn btn-warning auto-detect-btn ${isAutoDetecting ? 'loading' : ''}`}
+                                        onClick={handleAIVisionScan}
+                                        disabled={isAutoDetecting}
+                                        title="使用 AI 自動掃描圖片中的文字（適用於新學校）"
+                                    >
+                                        {isAutoDetecting ? (
+                                            <>
+                                                <span className="spinner"></span>
+                                                AI 掃描中...
+                                            </>
+                                        ) : (
+                                            <>✨ AI 辨識</>
                                         )}
                                     </button>
                                 </div>
@@ -958,7 +1015,7 @@ const MapEditor = ({ imageUrl, rooms = [], onSave, onClose, onRoomsChange }) => 
                             return (
                                 <div
                                     key={`${room.id}_${showCalibration ? 'c' : 'n'}`}
-                                    className={`room-marker ${isSelected ? 'selected' : ''} ${showCalibration ? 'calibrating' : ''}`}
+                                    className={`room-marker ${isSelected ? 'selected' : ''} ${showCalibration ? 'calibrating' : ''} ${renderBounds.width < 3 || renderBounds.height < 3 ? 'small-room' : ''}`}
                                     style={{
                                         left: `${renderBounds.x}%`,
                                         top: `${renderBounds.y}%`,
@@ -970,10 +1027,18 @@ const MapEditor = ({ imageUrl, rooms = [], onSave, onClose, onRoomsChange }) => 
                                     }}
                                     onMouseDown={(e) => handleRoomMouseDown(e, room)}
                                 >
+                                    {/* 標籤容器 (上下堆疊排版) */}
                                     <div className="room-label-container">
+                                        {/* 1. 教室編號 (置頂) */}
                                         <span className="room-label code">{room.code}</span>
-                                        {room.name && room.name !== room.code && (
-                                            <span className="room-label name">{room.name}</span>
+
+                                        {/* 2. 教室名稱 (置下) - 自動移除重複的編號前綴以美化顯示 */}
+                                        {room.name && (
+                                            <span className="room-label name">
+                                                {room.name.startsWith(room.code)
+                                                    ? room.name.slice(room.code.length).trim()
+                                                    : room.name}
+                                            </span>
                                         )}
                                     </div>
                                 </div>
@@ -1112,7 +1177,7 @@ const MapEditor = ({ imageUrl, rooms = [], onSave, onClose, onRoomsChange }) => 
 
                 {selectedRoom && !editingRoom && !showCalibration && !isDraggingRoom && (
                     <div className="room-info-panel glass-card">
-                        <h3>📍 {selectedRoom.code} - {selectedRoom.name}</h3>
+                        <h3>📍 {selectedRoom.code} - {selectedRoom.name && selectedRoom.name.startsWith(selectedRoom.code) ? selectedRoom.name.slice(selectedRoom.code.length).trim() : selectedRoom.name}</h3>
                         <p className="room-category">類型：{selectedRoom.category}</p>
                         <div className="form-actions">
                             <button

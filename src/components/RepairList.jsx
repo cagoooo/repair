@@ -1,14 +1,15 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { REPAIR_CATEGORIES, REPAIR_STATUS, REPAIR_PRIORITY } from '../data/repairCategories';
 import { useToast } from './Toast';
+import RepairPrintDetail from './RepairPrintDetail';
 import './RepairList.css';
 
 /**
  * 報修列表元件
  * 顯示所有報修單，支援篩選與狀態更新
  */
-function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment, onDeleteRepair }) {
+function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment, onDeleteRepair, highlightRepairId }) {
     const toast = useToast();
     const [filter, setFilter] = useState({
         category: 'all',
@@ -110,11 +111,34 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
     const [previewImage, setPreviewImage] = useState(null);
     // 展開詳情狀態
     const [expandedId, setExpandedId] = useState(null);
+    // 列印狀態
+    const [printingRepair, setPrintingRepair] = useState(null);
+    // 列表容器 Ref (用於捲動)
+    const listRef = useRef(null);
+
     // 管理員備註輸入
     const [commentText, setCommentText] = useState('');
     const [commentLoading, setCommentLoading] = useState(false);
     // 各報修單的回覆列表
     const [commentsMap, setCommentsMap] = useState({});
+
+    // 自動展開並捲動到指定報修單 (Deep Linking)
+    useEffect(() => {
+        if (highlightRepairId && repairs.length > 0) {
+            const target = repairs.find(r => r.id === highlightRepairId);
+            if (target) {
+                setExpandedId(highlightRepairId);
+                // 延遲捲動確保 DOM 已渲染
+                setTimeout(() => {
+                    const el = document.getElementById(`repair-${highlightRepairId}`);
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        el.classList.add('highlight-pulse'); // 可選：增加 CSS 動畫提示
+                    }
+                }, 500);
+            }
+        }
+    }, [highlightRepairId, repairs]);
 
     // 當展開卡片時，載入 comments
     useEffect(() => {
@@ -196,6 +220,17 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
         if (repair.imageUrls && repair.imageUrls.length > 0) return repair.imageUrls;
         if (repair.imageUrl) return [repair.imageUrl];
         return [];
+    };
+
+    // 處理列印
+    const handlePrint = (repair) => {
+        setPrintingRepair(repair);
+        // 延遲執行列印，確保 DOM 已更新
+        setTimeout(() => {
+            window.print();
+            // 列印對話框關閉後（或立即），重置狀態（視瀏覽器行為而定，通常保持狀態也無妨，因為 CSS 會隱藏）
+            // 但為了保險，可以在 window.onafterprint 大約處理，或不重置也行，因為 display:none
+        }, 300);
     };
 
     return (
@@ -341,7 +376,7 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
                         const comments = commentsMap[repair.id] || [];
 
                         return (
-                            <div key={repair.id} className={`repair-card ${repair.priority} ${isExpanded ? 'expanded' : ''}`}>
+                            <div key={repair.id} id={`repair-${repair.id}`} className={`repair-card ${repair.priority} ${isExpanded ? 'expanded' : ''}`}>
                                 <div className="repair-status-line" data-status={repair.status}></div>
 
                                 {/* 卡片頂部 - 點擊展開 */}
@@ -478,10 +513,26 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
                                         {repair.status === 'pending' ? '🔄 開始處理' : '✅ 標記完成'}
                                     </button>
                                 )}
+
+                                {/* 列印按鈕 (所有人皆可見) */}
+                                {isExpanded && (
+                                    <button
+                                        className="btn btn-secondary btn-sm"
+                                        style={{ marginLeft: '10px' }}
+                                        onClick={() => handlePrint(repair)}
+                                    >
+                                        🖨️ 列印報修單
+                                    </button>
+                                )}
                             </div>
                         );
                     })
                 )}
+            </div>
+
+            {/* 列印用容器 (僅在列印時顯示) */}
+            <div className={`print-container-wrapper ${printingRepair ? 'printing' : ''}`}>
+                <RepairPrintDetail repair={printingRepair} />
             </div>
         </div>
     );

@@ -1,7 +1,13 @@
 import { useState, useMemo } from 'react';
 import * as XLSX from 'xlsx';
+import {
+    PieChart, Pie, Cell,
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+} from 'recharts';
 import { REPAIR_CATEGORIES, REPAIR_STATUS } from '../data/repairCategories';
 import './AdminDashboard.css';
+
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 /**
  * 管理員後台儀表板
@@ -15,12 +21,38 @@ function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair }) {
 
     // 計算統計數據
     const stats = useMemo(() => {
-        return {
+        // 基礎統計
+        const basic = {
             pending: repairs.filter(r => r.status === 'pending').length,
             inProgress: repairs.filter(r => r.status === 'in_progress').length,
             completed: repairs.filter(r => r.status === 'completed').length,
             urgent: repairs.filter(r => r.priority === 'urgent' && r.status !== 'completed').length
         };
+
+        // 類別分佈 (Pie Chart)
+        const categoryData = Object.values(REPAIR_CATEGORIES).map(cat => ({
+            name: cat.name,
+            value: repairs.filter(r => r.category === cat.id).length
+        })).filter(d => d.value > 0);
+
+        // 近七日趨勢 (Bar Chart)
+        const last7Days = [...Array(7)].map((_, i) => {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            return d.toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' });
+        }).reverse();
+
+        const trendData = last7Days.map(dateStr => {
+            return {
+                name: dateStr,
+                count: repairs.filter(r => {
+                    const rDate = new Date(r.createdAt).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' });
+                    return rDate === dateStr;
+                }).length
+            };
+        });
+
+        return { ...basic, categoryData, trendData };
     }, [repairs]);
 
     // 篩選與排序邏輯
@@ -140,6 +172,52 @@ function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair }) {
                     <div className="stat-info">
                         <span className="stat-label">緊急案件</span>
                         <span className="stat-value">{stats.urgent}</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* 圖表區域 (New) */}
+            <div className="charts-container">
+                <div className="chart-card">
+                    <h3>📊 報修類別分佈</h3>
+                    <div className="chart-wrapper">
+                        <ResponsiveContainer width="100%" height={300}>
+                            <PieChart>
+                                <Pie
+                                    data={stats.categoryData}
+                                    cx="50%"
+                                    cy="50%"
+                                    labelLine={false}
+                                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                    outerRadius={80}
+                                    fill="#8884d8"
+                                    dataKey="value"
+                                >
+                                    {stats.categoryData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+                <div className="chart-card">
+                    <h3>📈 近七日報修趨勢</h3>
+                    <div className="chart-wrapper">
+                        <ResponsiveContainer width="100%" height={300}>
+                            <BarChart
+                                data={stats.trendData}
+                                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                            >
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="name" />
+                                <YAxis allowDecimals={false} />
+                                <Tooltip cursor={{ fill: 'transparent' }} />
+                                <Legend />
+                                <Bar dataKey="count" name="報修數" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
             </div>

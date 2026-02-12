@@ -200,7 +200,9 @@ function RepairForm({ room, onSubmit, onClose }) {
                         <h2>📝 報修申請</h2>
                         <p className="room-info">
                             <span className="room-badge">{room.code}</span>
-                            {room.name}
+                            {room.name && room.name.startsWith(room.code)
+                                ? room.name.slice(room.code.length).trim()
+                                : room.name}
                         </p>
                     </div>
                     <button className="close-btn" onClick={onClose}>✕</button>

@@ -6,7 +6,9 @@ import RepairForm from './components/RepairForm';
 import RepairList from './components/RepairList';
 import AdminDashboard from './components/AdminDashboard';
 import Skeleton from './components/Skeleton';
+import ScrollToTop from './components/ScrollToTop'; // [NEW] Import ScrollToTop
 import { useToast } from './components/Toast';
+import { checkIsAdmin, DEFAULT_GAS_PROXY, SUBMIT_COOLDOWN_MS } from './config/constants'; // [NEW] Import constants
 import './App.css';
 
 // 本地儲存 key
@@ -45,7 +47,22 @@ function App() {
   // 通知設定狀態
   const [lineToken, setLineToken] = useState('');
   const [lineTargetId, setLineTargetId] = useState('');
-  const [gasProxy, setGasProxy] = useState('https://us-central1-smes-e1dc3.cloudfunctions.net/sendLineNotification');
+  const [gasProxy, setGasProxy] = useState(DEFAULT_GAS_PROXY); // [MODIFY] Use constant
+
+  // Deep Linking 狀態
+  const [highlightRepairId, setHighlightRepairId] = useState(null);
+
+  // 處理 Deep Linking (URL Query Param)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const repairId = params.get('repairId');
+    if (repairId) {
+      setHighlightRepairId(repairId);
+      setActiveTab('list');
+      // 移除 URL 參數，避免重整後持續觸發 (可選)
+      // window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   // 載入通知設定
   // 載入通知設定 (從 Firestore)
@@ -114,9 +131,8 @@ function App() {
     if (!auth) return;
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-      // 權限控管：僅允許特定 Email 成為管理員
-      const adminEmail = 'ipad@mail2.smes.tyc.edu.tw';
-      if (currentUser && currentUser.email === adminEmail) {
+      // 權限控管：使用集中式檢查
+      if (currentUser && checkIsAdmin(currentUser.email)) { // [MODIFY] Use checkIsAdmin
         setIsAdmin(true);
       } else {
         setIsAdmin(false);
@@ -307,7 +323,7 @@ function App() {
       // 如果 mapImage 是 URL（非 base64），存為 mapImageUrl
       if (mapImage && !mapImage.startsWith('data:')) {
         configData.mapImageUrl = mapImage;
-      } else {
+      } else if (mapImage) {
         configData.mapImage = mapImage;
       }
       await setDoc(doc(db, 'system', 'mapConfig'), configData);
@@ -334,8 +350,8 @@ function App() {
 
     // 前端 Rate Limiting
     const now = Date.now();
-    if (now - lastSubmitRef.current < 30000) {
-      toast.warning('提交過於頻繁，請稍候 30 秒再試');
+    if (now - lastSubmitRef.current < SUBMIT_COOLDOWN_MS) {
+      toast.warning(`提交過於頻繁，請稍候 ${SUBMIT_COOLDOWN_MS / 1000} 秒再試`);
       return;
     }
     lastSubmitRef.current = now;
@@ -529,6 +545,7 @@ function App() {
                 onUpdateStatus={handleUpdateStatus}
                 onAddComment={handleAddComment}
                 onDeleteRepair={handleDeleteRepair}
+                highlightRepairId={highlightRepairId}
                 onViewRoom={(roomId) => {
                   const room = rooms.find(r => r.id === roomId);
                   if (room) setSelectedRoom(room);
@@ -757,6 +774,9 @@ function App() {
           }}
         />
       )}
+
+      {/* 回到頂部按鈕 */}
+      <ScrollToTop />
     </div>
   );
 }
