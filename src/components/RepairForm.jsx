@@ -212,18 +212,20 @@ function RepairForm({ room, onSubmit, onClose }) {
     return (
         <div className="repair-form-overlay" onClick={onClose}>
             <div className="repair-form-container glass-card" onClick={(e) => e.stopPropagation()}>
-                <div className="repair-form-header">
-                    <div>
-                        <h2>📝 報修申請</h2>
-                        <p className="room-info">
-                            <span className="room-badge">{room.code}</span>
-                            {room.name && room.name.startsWith(room.code)
-                                ? room.name.slice(room.code.length).trim()
-                                : room.name}
-                        </p>
+                {!isSuccess && (
+                    <div className="repair-form-header">
+                        <div>
+                            <h2>📝 報修申請</h2>
+                            <p className="room-info">
+                                <span className="room-badge">{room.code}</span>
+                                {room.name && room.name.startsWith(room.code)
+                                    ? room.name.slice(room.code.length).trim()
+                                    : room.name}
+                            </p>
+                        </div>
+                        <button className="close-btn" onClick={onClose}>✕</button>
                     </div>
-                    <button className="close-btn" onClick={onClose}>✕</button>
-                </div>
+                )}
 
                 {!isSuccess && (
                     <form onSubmit={handleSubmit} className="repair-form">

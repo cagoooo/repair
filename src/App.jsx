@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import InteractiveMap from './components/InteractiveMap';
 import MapEditor from './components/MapEditor';
 import MapUploader from './components/MapUploader';
@@ -40,7 +40,14 @@ function App() {
   const [activeTab, setActiveTab] = useState('map');
   const [mapImage, setMapImage] = useState(null);
   const [rooms, setRooms] = useState([]);
-  const [repairs, setRepairs] = useState([]);
+  const [rawRepairs, setRawRepairs] = useState([]); // [MODIFY] Rename to rawRepairs
+  const [myRepairIds, setMyRepairIds] = useState(() => { // [NEW] Lift local storage state
+    try {
+      return JSON.parse(localStorage.getItem('my_repair_ids') || '[]');
+    } catch (e) {
+      return [];
+    }
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [showEditor, setShowEditor] = useState(false);
   const [showRepairForm, setShowRepairForm] = useState(false);
@@ -325,6 +332,11 @@ function App() {
     }
   }, [mapImage]);
 
+  // [NEW] Sync myRepairIds to localStorage
+  useEffect(() => {
+    localStorage.setItem('my_repair_ids', JSON.stringify(myRepairIds));
+  }, [myRepairIds]);
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.ROOMS, JSON.stringify(rooms));
   }, [rooms]);
@@ -340,7 +352,10 @@ function App() {
     const q = query(repairsRef, orderBy('createdAt', 'desc'));
 
     const unsubscribe = onSnapshot(q, async (snapshot) => {
-      const repairsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const repairsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
 
       // 自動遷移：如果雲端沒資料但本地有，執行一次性上傳
       if (snapshot.empty) {
@@ -368,7 +383,7 @@ function App() {
         }
       }
 
-      setRepairs(repairsData);
+      setRawRepairs(repairsData); // [MODIFY] Update rawRepairs
       setIsLoading(false);
     }, (error) => {
       console.error("讀取報修資料錯誤:", error);
@@ -377,6 +392,14 @@ function App() {
 
     return () => unsubscribe();
   }, [db]);
+
+  // [NEW] Derive repairs with isMine flag
+  const repairs = useMemo(() => {
+    return rawRepairs.map(repair => ({
+      ...repair,
+      isMine: myRepairIds.includes(repair.id)
+    }));
+  }, [rawRepairs, myRepairIds]);
 
   // 🔔 動態頁面標題：顯示待處理報修數
   useEffect(() => {
@@ -447,18 +470,18 @@ function App() {
   // 提交報修
   // 提交報修 (Firestore)
   const handleSubmitRepair = async (repairData) => {
-    if (!db) { toast.error('無資料庫連線'); return; }
+    if (!db) { toast.error('無資料庫連線'); return null; }
 
     // 前端 Rate Limiting
     const now = Date.now();
     if (now - lastSubmitRef.current < SUBMIT_COOLDOWN_MS) {
       toast.warning(`提交過於頻繁，請稍候 ${SUBMIT_COOLDOWN_MS / 1000} 秒再試`);
-      return;
+      return null;
     }
     lastSubmitRef.current = now;
 
     try {
-      await addDoc(collection(db, 'repairs'), {
+      const docRef = await addDoc(collection(db, 'repairs'), {
         ...repairData,
         status: 'pending',
         createdAt: new Date().toISOString()
@@ -467,7 +490,7 @@ function App() {
 
       // 發送 Line 通知
       try {
-        const message = `\n[新報修通知]\n地點: ${repairData.roomCode} ${repairData.roomName}\n類別: ${repairData.category}\n項目: ${repairData.item}\n描述: ${repairData.description}\n申報人: ${repairData.reporterName}`;
+        const message = `\n[新報修通知]\n地點: ${repairData.roomCode} ${repairData.roomName}\n類別: ${repairData.category}\n項目: ${repairData.itemType}\n描述: ${repairData.description}\n申報人: ${repairData.reporterName}`;
         await sendLineNotification(message, {
           token: lineToken,
           proxyUrl: gasProxy,
@@ -477,9 +500,19 @@ function App() {
       } catch (notifyError) {
         console.error('Notification failed:', notifyError);
       }
+
+      // [NEW] Update local myRepairIds state immediately
+      if (docRef.id) {
+        setMyRepairIds(prev => {
+          if (prev.includes(docRef.id)) return prev;
+          return [...prev, docRef.id];
+        });
+      }
+      return docRef.id;
     } catch (e) {
       console.error('報修提交失敗:', e);
       toast.error('報修提交失敗');
+      return null;
     }
   };
 
@@ -519,16 +552,45 @@ function App() {
 
   // 刪除報修 (Firestore)
   const handleDeleteRepair = async (repairId) => {
-    if (!isAdmin) {
-      toast.warning('權限不足：僅管理員可刪除報修單');
+    // 檢查是否為自己的報修
+    const myRepairIds = JSON.parse(localStorage.getItem('my_repair_ids') || '[]');
+    const isMine = myRepairIds.includes(repairId);
+
+    if (!isAdmin && !isMine) {
+      toast.warning('權限不足：僅管理員或本人可刪除報修單');
       return;
     }
-    if (!confirm('確定要刪除此報修單嗎？')) return;
+
+    // 如果是本人但不是 Pending 狀態，也不允許刪除 (除非是 Admin)
+    const targetRepair = repairs.find(r => r.id === repairId);
+    if (!isAdmin && isMine && targetRepair?.status !== 'pending') {
+      toast.warning('僅能撤銷「待處理」的報修單，若已開始處理請聯絡管理員。');
+      return;
+    }
+
+    if (!confirm('確定要刪除/撤銷此報修單嗎？')) return;
     if (!db) return;
     try {
-      await deleteDoc(doc(db, 'repairs', repairId));
+      if (isAdmin) {
+        // 管理員：硬刪除
+        await deleteDoc(doc(db, 'repairs', repairId));
+        toast.success('報修單已刪除');
+      } else {
+        // 使用者：軟刪除 (撤銷)
+        await updateDoc(doc(db, 'repairs', repairId), {
+          status: 'cancelled',
+          updatedAt: new Date().toISOString()
+        });
+        toast.success('已撤銷您的報修申請');
+      }
+
+      // 如果是自己的，操作後從 localStorage 移除 ID (避免重複操作)
+      if (isMine) {
+        setMyRepairIds(prev => prev.filter(id => id !== repairId));
+      }
     } catch (e) {
-      console.error('刪除失敗:', e);
+      console.error('操作失敗:', e);
+      toast.error('操作失敗');
     }
   };
 

@@ -33,6 +33,10 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
         // 狀態篩選
         if (filter.status !== 'all') {
             result = result.filter(r => r.status === filter.status);
+        } else {
+            // [MODIFY] 預設排除 "已取消" 的項目，除非使用者明確選擇該狀態
+            // 讓使用者感覺 "撤銷 = 刪除"
+            result = result.filter(r => r.status !== 'cancelled');
         }
 
         // 搜尋
@@ -511,6 +515,28 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
                                         onClick={() => onUpdateStatus(repair.id, getNextStatus(repair.status))}
                                     >
                                         {repair.status === 'pending' ? '🔄 開始處理' : '✅ 標記完成'}
+                                    </button>
+                                )}
+
+                                {/* 使用者撤銷按鈕 (若是自己的報修且狀態為 pending) */}
+                                {!isAdmin && repair.isMine && repair.status === 'pending' && (
+                                    <button
+                                        className="btn btn-danger btn-sm"
+                                        style={{ marginLeft: '10px', backgroundColor: '#ff6b6b' }}
+                                        onClick={() => onDeleteRepair(repair.id)}
+                                    >
+                                        🗑️ 撤銷申請
+                                    </button>
+                                )}
+
+                                {/* 管理員刪除按鈕 */}
+                                {isAdmin && (
+                                    <button
+                                        className="btn btn-danger btn-sm"
+                                        style={{ marginLeft: '10px' }}
+                                        onClick={() => onDeleteRepair(repair.id)}
+                                    >
+                                        ❌ 刪除
                                     </button>
                                 )}
 

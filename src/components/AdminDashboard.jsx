@@ -258,6 +258,7 @@ function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair }) {
                         <option value="pending">🕒 待處理</option>
                         <option value="in_progress">🔧 處理中</option>
                         <option value="completed">✅ 已完成</option>
+                        <option value="cancelled">❌ 已取消</option>
                     </select>
                 </div>
             </div>
@@ -330,6 +331,7 @@ function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair }) {
                                                 <option value="pending">🕒 待處理</option>
                                                 <option value="in_progress">🔧 處理中</option>
                                                 <option value="completed">✅ 已完成</option>
+                                                <option value="cancelled">❌ 已取消</option>
                                             </select>
                                         </td>
                                         <td>
@@ -397,6 +399,7 @@ function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair }) {
                                                 <option value="pending">待處理</option>
                                                 <option value="in_progress">處理中</option>
                                                 <option value="completed">完成</option>
+                                                <option value="cancelled">已取消</option>
                                             </select>
                                         </div>
                                         <div className="actions">

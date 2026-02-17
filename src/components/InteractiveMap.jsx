@@ -72,7 +72,7 @@ function InteractiveMap({ imageUrl, rooms, repairs, onRoomClick, onEditMap }) {
         if (!repairs || repairs.length === 0) return { status: 'normal', count: 0 };
 
         const roomRepairs = repairs.filter(r => {
-            if (r.status === 'completed') return false;
+            if (r.status === 'completed' || r.status === 'cancelled') return false;
 
             // Prioritize unique code matching if available
             if (r.roomCode && room.code) {
