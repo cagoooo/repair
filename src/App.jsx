@@ -8,7 +8,7 @@ import AdminDashboard from './components/AdminDashboard';
 import Skeleton from './components/Skeleton';
 import ScrollToTop from './components/ScrollToTop'; // [NEW] Import ScrollToTop
 import { useToast } from './components/Toast';
-import { checkIsAdmin, DEFAULT_GAS_PROXY, SUBMIT_COOLDOWN_MS } from './config/constants'; // [NEW] Import constants
+import { checkIsAdmin, DEFAULT_GAS_PROXY, SUBMIT_COOLDOWN_MS, SUPER_ADMIN } from './config/constants'; // [NEW] Import constants
 import { REPAIR_CATEGORIES } from './data/repairCategories';
 import Footer from './components/Footer';
 import './App.css';
@@ -58,9 +58,16 @@ function App() {
   const [isAdmin, setIsAdmin] = useState(false);
 
   // 通知設定狀態
-  const [lineToken, setLineToken] = useState('');
-  const [lineTargetId, setLineTargetId] = useState('');
-  const [gasProxy, setGasProxy] = useState(DEFAULT_GAS_PROXY); // [MODIFY] Use constant
+  const [itLineToken, setItLineToken] = useState('');
+  const [itTargetId, setItTargetId] = useState('');
+  const [generalLineToken, setGeneralLineToken] = useState('');
+  const [generalTargetId, setGeneralTargetId] = useState('');
+  const [gasProxy, setGasProxy] = useState(DEFAULT_GAS_PROXY);
+
+  // 動態管理員狀態
+  const [additionalAdmins, setAdditionalAdmins] = useState([]);
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [notifyTab, setNotifyTab] = useState('it');
 
   // Deep Linking 狀態
   const [highlightRepairId, setHighlightRepairId] = useState(null);
@@ -77,6 +84,18 @@ function App() {
     }
   }, []);
 
+  // 監聽動態管理員名單
+  useEffect(() => {
+    if (!db) return;
+    const unsubscribe = onSnapshot(doc(db, 'system', 'adminConfig'), (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        const data = docSnapshot.data();
+        setAdditionalAdmins(data.emails || []);
+      }
+    });
+    return () => unsubscribe();
+  }, [db]);
+
   // 載入通知設定
   // 載入通知設定 (從 Firestore)
   useEffect(() => {
@@ -89,8 +108,14 @@ function App() {
 
           if (docSnap.exists()) {
             const data = docSnap.data();
-            if (data.lineToken) setLineToken(data.lineToken);
-            if (data.targetId) setLineTargetId(data.targetId);
+            // 資訊組 (相容舊欄位)
+            setItLineToken(data.itLineToken || data.lineToken || '');
+            setItTargetId(data.itTargetId || data.targetId || '');
+
+            // 事務組
+            setGeneralLineToken(data.generalLineToken || '');
+            setGeneralTargetId(data.generalTargetId || '');
+
             if (data.gasProxy) setGasProxy(data.gasProxy);
             return; // 雲端有資料就不讀本地
           }
@@ -104,8 +129,8 @@ function App() {
       const savedTargetId = localStorage.getItem('line_target_id');
       const savedProxy = localStorage.getItem('gas_proxy_url');
 
-      if (savedToken) setLineToken(savedToken);
-      if (savedTargetId) setLineTargetId(savedTargetId);
+      if (savedToken) setItLineToken(savedToken);
+      if (savedTargetId) setItTargetId(savedTargetId);
       if (savedProxy) setGasProxy(savedProxy);
     };
 
@@ -173,9 +198,18 @@ function App() {
         await addDoc(repairsRef, repairData);
 
         // 3. 發送 Line 通知
-        if (lineToken) {
+        const isGeneral = formData.category === 'GENERAL';
+        const token = isGeneral ? generalLineToken : itLineToken;
+        const targetId = isGeneral ? generalTargetId : itTargetId;
+
+        if (token) {
           try {
-            await sendLineNotification(repairData, lineToken, lineTargetId, gasProxy);
+            await sendLineNotification(repairData, {
+              token,
+              proxyUrl: gasProxy,
+              targetId,
+              repairData
+            });
           } catch (notifErr) {
             console.warn('Sync notification failed:', notifErr);
           }
@@ -205,26 +239,28 @@ function App() {
       syncOfflineData();
     }
     return () => window.removeEventListener('online', handleOnline);
-  }, [db, lineToken, lineTargetId, gasProxy]);
+  }, [db, itLineToken, itTargetId, generalLineToken, generalTargetId, gasProxy]);
 
   // 儲存通知設定
   // 儲存通知設定 (到 Firestore + 本地備份)
   const handleSaveNotifySettings = async () => {
     // 儲存到本地 (作為備份)
-    localStorage.setItem('line_notify_token', lineToken);
-    localStorage.setItem('line_target_id', lineTargetId);
+    localStorage.setItem('line_notify_token', itLineToken);
+    localStorage.setItem('line_target_id', itTargetId);
     localStorage.setItem('gas_proxy_url', gasProxy);
 
     // 儲存到雲端 (主要儲存)
     if (db && isAdmin) {
       try {
         await setDoc(doc(db, 'system', 'notificationConfig'), {
-          lineToken: lineToken,
-          targetId: lineTargetId,
+          itLineToken: itLineToken,
+          itTargetId: itTargetId,
+          generalLineToken: generalLineToken,
+          generalTargetId: generalTargetId,
           gasProxy: gasProxy,
           updatedAt: new Date().toISOString()
         });
-        toast.success('通知設定已儲存到雲端！(跟隨帳號，換電腦也有效)');
+        toast.success('通知設定已儲存到雲端！');
       } catch (error) {
         console.error('儲存到雲端失敗:', error);
         toast.warning('已儲存到本地，但雲端同步失敗：' + error.message);
@@ -234,20 +270,71 @@ function App() {
     }
   };
 
+  // 新增管理員
+  const handleAddAdmin = async () => {
+    if (!newAdminEmail || !newAdminEmail.includes('@')) {
+      toast.error('請輸入有效的 Email');
+      return;
+    }
+    if (additionalAdmins.includes(newAdminEmail)) {
+      toast.warning('此 Email 已在管理員名單中');
+      return;
+    }
+
+    try {
+      const newAdmins = [...additionalAdmins, newAdminEmail];
+      await setDoc(doc(db, 'system', 'adminConfig'), {
+        emails: newAdmins,
+        updatedAt: new Date().toISOString()
+      });
+      setNewAdminEmail('');
+      toast.success(`已將 ${newAdminEmail} 加入管理員`);
+    } catch (e) {
+      console.error('新增管理員失敗:', e);
+      toast.error('新增失敗：' + e.message);
+    }
+  };
+
+  // 移除管理員
+  const handleRemoveAdmin = async (emailToRemove) => {
+    if (!confirm(`確定要移除 ${emailToRemove} 的管理員權限嗎？`)) return;
+
+    try {
+      const newAdmins = additionalAdmins.filter(email => email !== emailToRemove);
+      await setDoc(doc(db, 'system', 'adminConfig'), {
+        emails: newAdmins,
+        updatedAt: new Date().toISOString()
+      });
+      toast.success(`已移除 ${emailToRemove}`);
+    } catch (e) {
+      console.error('移除管理員失敗:', e);
+      toast.error('移除失敗：' + e.message);
+    }
+  };
+
   // 監聽登入狀態
   useEffect(() => {
     if (!auth) return;
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-      // 權限控管：使用集中式檢查
-      if (currentUser && checkIsAdmin(currentUser.email)) { // [MODIFY] Use checkIsAdmin
-        setIsAdmin(true);
+
+      // 權限控管
+      if (currentUser) {
+        const isSuperAdmin = currentUser.email === SUPER_ADMIN;
+        const isDynamicAdmin = additionalAdmins.includes(currentUser.email);
+
+        // 如果是 Super Admin 或在動態名單中，或是舊有的硬編碼名單 (過渡期)
+        if (isSuperAdmin || isDynamicAdmin || checkIsAdmin(currentUser.email)) {
+          setIsAdmin(true);
+        } else {
+          setIsAdmin(false);
+        }
       } else {
         setIsAdmin(false);
       }
     });
     return () => unsubscribe();
-  }, []);
+  }, [additionalAdmins]); // 當名單更新時重新檢查權限
 
   // 處理登入
   const handleLogin = async () => {
@@ -490,13 +577,19 @@ function App() {
 
       // 發送 Line 通知
       try {
-        const message = `\n[新報修通知]\n地點: ${repairData.roomCode} ${repairData.roomName}\n類別: ${repairData.category}\n項目: ${repairData.itemType}\n描述: ${repairData.description}\n申報人: ${repairData.reporterName}`;
-        await sendLineNotification(message, {
-          token: lineToken,
-          proxyUrl: gasProxy,
-          targetId: lineTargetId,
-          repairData: repairData
-        });
+        const isGeneral = repairData.category === 'GENERAL';
+        const token = isGeneral ? generalLineToken : itLineToken;
+        const targetId = isGeneral ? generalTargetId : itTargetId;
+
+        if (token) {
+          const message = `\n[新報修通知]\n地點: ${repairData.roomCode} ${repairData.roomName}\n類別: ${repairData.category}\n項目: ${repairData.itemType}\n描述: ${repairData.description}\n申報人: ${repairData.reporterName}`;
+          await sendLineNotification(message, {
+            token: token,
+            proxyUrl: gasProxy,
+            targetId: targetId,
+            repairData: repairData
+          });
+        }
       } catch (notifyError) {
         console.error('Notification failed:', notifyError);
       }
@@ -551,46 +644,52 @@ function App() {
   };
 
   // 刪除報修 (Firestore)
-  const handleDeleteRepair = async (repairId) => {
+  const handleDeleteRepair = async (repairId, skipConfirm = false) => {
     // 檢查是否為自己的報修
     const myRepairIds = JSON.parse(localStorage.getItem('my_repair_ids') || '[]');
     const isMine = myRepairIds.includes(repairId);
 
+    // 權限檢查：只有管理員和擁有者可以刪除
     if (!isAdmin && !isMine) {
-      toast.warning('權限不足：僅管理員或本人可刪除報修單');
+      if (!skipConfirm) toast.warning('權限不足：僅管理員或本人可刪除報修單');
       return;
     }
 
-    // 如果是本人但不是 Pending 狀態，也不允許刪除 (除非是 Admin)
     const targetRepair = repairs.find(r => r.id === repairId);
+    // 如果是本人且非 pending 狀態 (已處理中/已完成)，禁止刪除 (除非是 Admin)
     if (!isAdmin && isMine && targetRepair?.status !== 'pending') {
-      toast.warning('僅能撤銷「待處理」的報修單，若已開始處理請聯絡管理員。');
+      if (!skipConfirm) toast.warning('僅能撤銷「待處理」的報修單，若已開始處理請聯絡管理員。');
       return;
     }
 
-    if (!confirm('確定要刪除/撤銷此報修單嗎？')) return;
+    // 確認視窗 (若 skipConfirm 為 true 則跳過)
+    if (!skipConfirm) {
+      if (!globalThis.confirm('確定要刪除/撤銷此報修單嗎？')) return;
+    }
+
     if (!db) return;
+
     try {
       if (isAdmin) {
-        // 管理員：硬刪除
+        // 管理員：硬刪除 Firestore 文件
         await deleteDoc(doc(db, 'repairs', repairId));
-        toast.success('報修單已刪除');
+        if (!skipConfirm) toast.success('報修單已刪除');
       } else {
-        // 使用者：軟刪除 (撤銷)
+        // 使用者：軟刪除 (標記為 cancelled)
         await updateDoc(doc(db, 'repairs', repairId), {
           status: 'cancelled',
           updatedAt: new Date().toISOString()
         });
-        toast.success('已撤銷您的報修申請');
+        if (!skipConfirm) toast.success('已撤銷您的報修申請');
       }
 
-      // 如果是自己的，操作後從 localStorage 移除 ID (避免重複操作)
+      // 如果是自己的，操作後從 localStorage 移除 ID
       if (isMine) {
         setMyRepairIds(prev => prev.filter(id => id !== repairId));
       }
     } catch (e) {
-      console.error('操作失敗:', e);
-      toast.error('操作失敗');
+      console.error('刪除失敗:', e);
+      if (!skipConfirm) toast.error('操作失敗');
     }
   };
 
@@ -793,35 +892,141 @@ function App() {
                 </div>
               </div>
 
+              {/* 管理員名單管理 (僅 Super Admin 可見) */}
+              {isAdmin && user?.email === SUPER_ADMIN && (
+                <div className="settings-card admin-manage-card full-width">
+                  <div className="card-header">
+                    <h3>🛡️ 管理員名單管理</h3>
+                    <p className="text-muted small">在此新增其他管理員 (如事務組長)，他們將擁有後台管理權限。</p>
+                  </div>
+                  <div className="card-content">
+                    <div className="admin-list">
+                      {additionalAdmins.map(email => (
+                        <div key={email} className="admin-item">
+                          <span>{email}</span>
+                          <button
+                            className="btn btn-icon btn-danger-soft"
+                            onClick={() => handleRemoveAdmin(email)}
+                            title="移除"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      ))}
+                      {additionalAdmins.length === 0 && (
+                        <p className="empty-hint">目前沒有額外管理員</p>
+                      )}
+                    </div>
+                    <div className="add-admin-form">
+                      <input
+                        type="email"
+                        placeholder="輸入新管理員 Email"
+                        value={newAdminEmail}
+                        onChange={(e) => setNewAdminEmail(e.target.value)}
+                        className="form-input"
+                      />
+                      <button
+                        className="btn btn-primary"
+                        onClick={handleAddAdmin}
+                        disabled={!newAdminEmail}
+                      >
+                        ➕ 新增
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* 通知設定 (僅管理員可見) */}
               {isAdmin && (
                 <div className="settings-card notification-card full-width">
                   <div className="card-header">
                     <h3>🔔 Line Notify 通知設定</h3>
+                    <div className="notify-tabs-container">
+                      <button
+                        className={`notify-tab-btn ${notifyTab === 'it' ? 'active' : ''}`}
+                        onClick={() => setNotifyTab('it')}
+                      >
+                        資訊組
+                      </button>
+                      <button
+                        className={`notify-tab-btn ${notifyTab === 'general' ? 'active' : ''}`}
+                        onClick={() => setNotifyTab('general')}
+                      >
+                        事務組
+                      </button>
+                    </div>
                   </div>
                   <div className="notification-content">
-                    <div className="form-group">
-                      <label>Channel Access Token (原 Line Notify Token)</label>
-                      <input
-                        type="password"
-                        value={lineToken}
-                        onChange={(e) => setLineToken(e.target.value)}
-                        placeholder="請輸入 Channel Access Token"
-                        className="form-input"
-                      />
-                    </div>
-                    <div className="form-group" style={{ marginTop: '10px' }}>
-                      <label>Target ID (User ID / Group ID)</label>
-                      <input
-                        type="text"
-                        value={lineTargetId}
-                        onChange={(e) => setLineTargetId(e.target.value)}
-                        placeholder="請輸入 User ID 或 Group ID (若使用舊版 Notify 可留空)"
-                        className="form-input"
-                      />
-                    </div>
-                    <div className="form-group" style={{ marginTop: '10px' }}>
-                      <label>Google Apps Script Proxy URL</label>
+                    {/* 資訊組設定 */}
+                    {notifyTab === 'it' && (
+                      <div className="notify-section animate-fadeIn">
+                        <h4 className="notify-section-title text-purple">🖥️ 資訊組通知 (IT)</h4>
+                        <div className="form-group">
+                          <label>Channel Access Token</label>
+                          <input
+                            type="password"
+                            value={itLineToken}
+                            onChange={(e) => setItLineToken(e.target.value)}
+                            placeholder="輸入資訊組 Token"
+                            className="form-input"
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginTop: '10px' }}>
+                          <label>Target ID (User/Group)</label>
+                          <input
+                            type="text"
+                            value={itTargetId}
+                            onChange={(e) => setItTargetId(e.target.value)}
+                            placeholder="輸入資訊組 Target ID"
+                            className="form-input"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 事務組設定 */}
+                    {notifyTab === 'general' && (
+                      <div className="notify-section animate-fadeIn">
+                        <h4 className="notify-section-title text-orange">🔧 事務組通知 (General)</h4>
+                        <div className="form-group">
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <label style={{ marginBottom: 0 }}>Channel Access Token</label>
+                            <button
+                              className="btn btn-sm btn-outline-secondary"
+                              style={{ fontSize: '0.8rem', padding: '2px 8px' }}
+                              onClick={() => {
+                                setGeneralLineToken(itLineToken);
+                                toast.success('已帶入資訊組 Token');
+                              }}
+                            >
+                              📋 同步資訊組 Token
+                            </button>
+                          </div>
+                          <input
+                            type="password"
+                            value={generalLineToken}
+                            onChange={(e) => setGeneralLineToken(e.target.value)}
+                            placeholder="輸入事務組 Token"
+                            className="form-input"
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginTop: '10px' }}>
+                          <label>Target ID (User/Group)</label>
+                          <input
+                            type="text"
+                            value={generalTargetId}
+                            onChange={(e) => setGeneralTargetId(e.target.value)}
+                            placeholder="輸入事務組 Target ID"
+                            className="form-input"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 共用設定 */}
+                    <div className="form-group" style={{ marginTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '15px' }}>
+                      <label>Google Apps Script Proxy URL (共用)</label>
                       <input
                         type="text"
                         value={gasProxy}
@@ -830,42 +1035,89 @@ function App() {
                         className="form-input"
                       />
                     </div>
+
                     <div className="form-actions" style={{ marginTop: '15px', display: 'flex', gap: '10px' }}>
                       <button className="btn btn-primary" onClick={handleSaveNotifySettings}>
                         💾 儲存設定
                       </button>
                       <button className="btn btn-secondary" onClick={async () => {
-                        // Mock Data for Testing Flex Message
+                        // 測試發送
+                        const isIT = notifyTab === 'it';
                         const mockRepairData = {
-                          roomCode: 'A101',
-                          roomName: '一年一班',
-                          category: '事務組',
-                          itemName: '冷氣',
-                          description: '冷氣無法啟動，顯示 E4 錯誤代碼',
-                          reporterName: '測試人員',
-                          priority: 'urgent'
+                          roomCode: 'TEST',
+                          roomName: '測試教室',
+                          category: isIT ? 'IT' : 'GENERAL',
+                          itemName: isIT ? '電腦主機' : '冷氣',
+                          description: '這是一則測試通知，確認設定是否正確。',
+                          reporterName: '系統測試',
+                          priority: 'normal'
                         };
-                        const res = await sendLineNotification('這是測試訊息（若您看到此行，代表 Flex Message 尚未生效）', {
-                          token: lineToken,
+
+                        const token = isIT ? itLineToken : generalLineToken;
+                        const targetId = isIT ? itTargetId : generalTargetId;
+
+                        if (!token || !targetId) {
+                          toast.warning('請先輸入 Token 與 Target ID');
+                          return;
+                        }
+
+                        const res = await sendLineNotification('測試通知', {
+                          token,
                           proxyUrl: gasProxy,
-                          targetId: lineTargetId,
+                          targetId,
                           repairData: mockRepairData
                         });
 
-                        if (res.success) toast.success('測試發送成功！請檢查手機是否收到「卡片式」通知。');
+                        if (res.success) toast.success(`[${isIT ? '資訊組' : '事務組'}] 測試發送成功！`);
                         else toast.error('測試失敗：' + res.error);
                       }}>
-                        🧪 測試發送 (Flex Message)
+                        🧪 測試發送 ({notifyTab === 'it' ? '資訊' : '事務'})
                       </button>
                     </div>
-                    <div className="helper-text" style={{ marginTop: '10px', fontSize: '0.85rem', color: '#aaa', lineHeight: '1.4' }}>
-                      <p>📝 設定步驟 (因 Line Notify 已於 2025/3 結束服務，請改用 Messaging API)：</p>
-                      <ol style={{ paddingLeft: '20px', margin: '5px 0' }}>
-                        <li>前往 <a href="https://developers.line.biz/" target="_blank" style={{ color: '#60a5fa' }}>LINE Developers Console</a> 建立 Provider & Channel (Messaging API)。</li>
-                        <li>在 Channel settings 中取得 <strong>Channel Access Token (Long-lived)</strong>。</li>
-                        <li>若要發給自己，請複製 <strong>Your User ID</strong> 填入 Target ID。</li>
-                        <li>更新 <a href="https://script.google.com/" target="_blank" style={{ color: '#60a5fa' }}>Google Apps Script</a> Proxy (請複製 notificationService.js 中的新代碼)。</li>
-                      </ol>
+
+                    <div className="helper-text" style={{ marginTop: '20px', padding: '15px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '8px' }}>
+                      <h4 style={{ margin: '0 0 10px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        📖 LINE 通知設定教學
+                      </h4>
+
+                      <div className="setup-steps" style={{ display: 'grid', gap: '12px' }}>
+                        <div className="step-item">
+                          <strong>步驟 1：取得 Token (Channel Access Token)</strong>
+                          <p style={{ margin: '4px 0 8px 0', fontSize: '0.9rem', color: '#ccc' }}>
+                            前往 LINE Developers 建立 Messaging API Channel。
+                          </p>
+                          <a
+                            href="https://developers.line.biz/console/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-sm btn-outline-primary"
+                            style={{ display: 'inline-block', textDecoration: 'none' }}
+                          >
+                            🔗 前往 LINE Developers Console
+                          </a>
+                          <div style={{ fontSize: '0.85rem', marginTop: '6px', color: '#aaa' }}>
+                            路徑：選擇 Provider &gt; 建立 Channel (Messaging API) &gt; Messaging API 分頁 &gt; 產生 Channel access token
+                          </div>
+                        </div>
+
+                        <div className="step-item">
+                          <strong>步驟 2：取得 Target ID (User ID / Group ID)</strong>
+                          <p style={{ margin: '4px 0 8px 0', fontSize: '0.9rem', color: '#ccc' }}>
+                            想通知群組？請先將機器人加入群組，並透過 webhook 取得群組 ID (較進階)。<br />
+                            簡單用法：通知個人，請填寫您的 User ID。
+                          </p>
+                          <div style={{ fontSize: '0.85rem', color: '#aaa' }}>
+                            路徑：LINE Developers Console &gt; Basic settings 分頁 &gt; Your user ID
+                          </div>
+                        </div>
+
+                        <div className="step-item">
+                          <strong>步驟 3：設定 Google Apps Script (GAS)</strong>
+                          <p style={{ margin: '4px 0 0 0', fontSize: '0.9rem', color: '#ccc' }}>
+                            若您是管理員並維護後端，請確保 GAS 程式碼已更新以支援 Messaging API。
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

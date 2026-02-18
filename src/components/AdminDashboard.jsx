@@ -19,6 +19,10 @@ function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair }) {
     const [statusFilter, setStatusFilter] = useState('all');
     const [previewImage, setPreviewImage] = useState(null);
 
+    // 批次刪除狀態
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState(new Set());
+
     // 計算統計數據
     const stats = useMemo(() => {
         // 基礎統計
@@ -128,6 +132,49 @@ function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair }) {
                     <span className="badge badge-primary">Admin</span>
                 </div>
                 <div className="admin-actions">
+                    {/* 批次刪除按鈕群組 */}
+                    {isSelectionMode ? (
+                        <div className="batch-actions animate-fadeIn">
+                            <span className="selected-count">已選取 {selectedIds.size} 筆</span>
+                            <button
+                                className="btn btn-danger-soft"
+                                onClick={async () => {
+                                    if (selectedIds.size === 0) return;
+                                    if (window.confirm(`確定要刪除選取的 ${selectedIds.size} 筆資料嗎？此操作無法復原。`)) {
+                                        // 執行批次刪除
+                                        const ids = Array.from(selectedIds);
+                                        for (const id of ids) {
+                                            await onDeleteRepair(id, true); // true = skip individual confirm
+                                        }
+                                        setSelectedIds(new Set());
+                                        setIsSelectionMode(false);
+                                        // 簡單提示 (Toast 最好在 App 層處理，這裡簡單 alert 或依賴 App 的 Toast)
+                                        // 由於是迴圈，App 那邊的 Toast 會被我們 skip 掉，所以這裡補一個總結
+                                        alert(`已成功刪除 ${ids.length} 筆資料`);
+                                    }
+                                }}
+                            >
+                                🗑️ 確認刪除
+                            </button>
+                            <button
+                                className="btn btn-secondary"
+                                onClick={() => {
+                                    setIsSelectionMode(false);
+                                    setSelectedIds(new Set());
+                                }}
+                            >
+                                ✕ 取消
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            className="btn btn-danger-soft"
+                            onClick={() => setIsSelectionMode(true)}
+                        >
+                            🗑️ 批次刪除
+                        </button>
+                    )}
+
                     <button className="btn btn-export" onClick={handleExportExcel}>
                         📥 匯出 Excel
                     </button>
@@ -277,6 +324,21 @@ function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair }) {
                         <table className="repair-table desktop-view">
                             <thead>
                                 <tr>
+                                    {isSelectionMode && (
+                                        <th style={{ width: '40px' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedIds.size === filteredRepairs.length && filteredRepairs.length > 0}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setSelectedIds(new Set(filteredRepairs.map(r => r.id)));
+                                                    } else {
+                                                        setSelectedIds(new Set());
+                                                    }
+                                                }}
+                                            />
+                                        </th>
+                                    )}
                                     <th>日期</th>
                                     <th>圖片</th>
                                     <th>教室</th>
@@ -290,7 +352,21 @@ function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair }) {
                             </thead>
                             <tbody>
                                 {filteredRepairs.map(repair => (
-                                    <tr key={repair.id} className={`repair-row ${repair.priority === 'urgent' ? 'row-urgent' : ''}`}>
+                                    <tr key={repair.id} className={`repair-row ${repair.priority === 'urgent' ? 'row-urgent' : ''} ${selectedIds.has(repair.id) ? 'row-selected' : ''}`}>
+                                        {isSelectionMode && (
+                                            <td>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.has(repair.id)}
+                                                    onChange={(e) => {
+                                                        const newSet = new Set(selectedIds);
+                                                        if (e.target.checked) newSet.add(repair.id);
+                                                        else newSet.delete(repair.id);
+                                                        setSelectedIds(newSet);
+                                                    }}
+                                                />
+                                            </td>
+                                        )}
                                         <td>{new Date(repair.createdAt).toLocaleDateString()}</td>
                                         <td>
                                             {repair.imageUrl ? (
@@ -358,6 +434,20 @@ function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair }) {
                                 <div key={repair.id} className={`mobile-repair-card ${repair.priority === 'urgent' ? 'card-urgent' : ''}`}>
                                     <div className="card-header">
                                         <div className="header-left">
+                                            {isSelectionMode && (
+                                                <input
+                                                    type="checkbox"
+                                                    className="mobile-checkbox"
+                                                    checked={selectedIds.has(repair.id)}
+                                                    onChange={(e) => {
+                                                        const newSet = new Set(selectedIds);
+                                                        if (e.target.checked) newSet.add(repair.id);
+                                                        else newSet.delete(repair.id);
+                                                        setSelectedIds(newSet);
+                                                    }}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                />
+                                            )}
                                             <div className="room-info">
                                                 <span className="room-code">{repair.roomCode}</span>
                                                 <span className="room-name">{repair.roomName}</span>

@@ -3,9 +3,11 @@
  */
 
 // 管理員 Email 清單
+export const SUPER_ADMIN = 'ipad@mail2.smes.tyc.edu.tw';
+
+// 管理員 Email 清單 (已廢棄，改用動態管理)
 export const ADMIN_EMAILS = [
-    'ipad@mail2.smes.tyc.edu.tw',
-    // 可以在此新增其他管理員 Email
+    SUPER_ADMIN
 ];
 
 // 檢查是否為管理員
