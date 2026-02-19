@@ -27,9 +27,7 @@ const Footer = () => {
 
                 <div className="footer-info">
                     <p className="copyright">
-                        校園報修系統 &copy; {new Date().getFullYear()}
-                        <span className="divider">|</span>
-                        <span className="author">Made with <span className="heart">❤️</span> for SMES</span>
+                        校園智慧報修系統 &copy; {new Date().getFullYear()} v0.6.0
                     </p>
                 </div>
             </div>

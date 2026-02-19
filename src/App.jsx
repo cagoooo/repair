@@ -8,6 +8,7 @@ import AdminDashboard from './components/AdminDashboard';
 import Skeleton from './components/Skeleton';
 import ScrollToTop from './components/ScrollToTop'; // [NEW] Import ScrollToTop
 import { useToast } from './components/Toast';
+import PwaInstallPrompt from './components/PwaInstallPrompt'; // [NEW] Import PwaInstallPrompt
 import { checkIsAdmin, DEFAULT_GAS_PROXY, SUBMIT_COOLDOWN_MS, SUPER_ADMIN } from './config/constants'; // [NEW] Import constants
 import { REPAIR_CATEGORIES } from './data/repairCategories';
 import Footer from './components/Footer';
@@ -91,6 +92,11 @@ function App() {
       if (docSnapshot.exists()) {
         const data = docSnapshot.data();
         setAdditionalAdmins(data.emails || []);
+      }
+    }, (error) => {
+      // 忽略權限不足錯誤 (一般使用者無法讀取 system/adminConfig)
+      if (error.code !== 'permission-denied') {
+        console.error('Error fetching admin config:', error);
       }
     });
     return () => unsubscribe();
@@ -473,7 +479,12 @@ function App() {
       setRawRepairs(repairsData); // [MODIFY] Update rawRepairs
       setIsLoading(false);
     }, (error) => {
-      console.error("讀取報修資料錯誤:", error);
+      // 忽略權限不足的錯誤 (可能是未登入用戶無法讀取)
+      if (error.code === 'permission-denied') {
+        console.warn('Firestore 權限不足，僅顯示本地資料 (若已登入請檢查權限設定)');
+      } else {
+        console.error("讀取報修資料錯誤:", error);
+      }
       setIsLoading(false);
     });
 
@@ -1187,6 +1198,7 @@ function App() {
 
       {/* 回到頂部按鈕 */}
       <ScrollToTop />
+      <PwaInstallPrompt />
     </div>
   );
 }

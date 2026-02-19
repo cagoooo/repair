@@ -25,12 +25,28 @@ function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair }) {
 
     // 計算統計數據
     const stats = useMemo(() => {
+        // MTTR (平均維修時間) 計算 - 單位：小時
+        const completedRepairs = repairs.filter(r => r.status === 'completed' && r.completedAt && r.createdAt);
+        let validMttrCount = 0;
+        const totalDurationMs = completedRepairs.reduce((acc, r) => {
+            const start = new Date(r.createdAt);
+            const end = new Date(r.completedAt);
+            const diff = end - start;
+            if (diff > 0) {
+                validMttrCount++;
+                return acc + diff;
+            }
+            return acc;
+        }, 0);
+        const avgHours = validMttrCount > 0 ? (totalDurationMs / validMttrCount / (1000 * 60 * 60)).toFixed(1) : '0.0';
+
         // 基礎統計
         const basic = {
             pending: repairs.filter(r => r.status === 'pending').length,
             inProgress: repairs.filter(r => r.status === 'in_progress').length,
             completed: repairs.filter(r => r.status === 'completed').length,
-            urgent: repairs.filter(r => r.priority === 'urgent' && r.status !== 'completed').length
+            urgent: repairs.filter(r => r.priority === 'urgent' && r.status !== 'completed').length,
+            mttr: avgHours // Add MTTR to basic stats
         };
 
         // 類別分佈 (Pie Chart)
@@ -38,6 +54,29 @@ function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair }) {
             name: cat.name,
             value: repairs.filter(r => r.category === cat.id).length
         })).filter(d => d.value > 0);
+
+        // 用戶排行榜 (Leaderboard) - Top 5
+        const reporterCounts = {};
+        repairs.forEach(r => {
+            const name = r.reporterName || '未知';
+            reporterCounts[name] = (reporterCounts[name] || 0) + 1;
+        });
+        const reporterData = Object.entries(reporterCounts)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5);
+
+        // 熱點分析 (Top 10 Rooms)
+        const roomCounts = {};
+        repairs.forEach(r => {
+            // 組合代號與名稱，避免混淆
+            const key = `${r.roomCode} ${r.roomName}`;
+            roomCounts[key] = (roomCounts[key] || 0) + 1;
+        });
+        const roomData = Object.entries(roomCounts)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10);
 
         // 近七日趨勢 (Bar Chart)
         const last7Days = [...Array(7)].map((_, i) => {
@@ -56,7 +95,7 @@ function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair }) {
             };
         });
 
-        return { ...basic, categoryData, trendData };
+        return { ...basic, categoryData, trendData, reporterData, roomData };
     }, [repairs]);
 
     // 篩選與排序邏輯
@@ -221,6 +260,13 @@ function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair }) {
                         <span className="stat-value">{stats.urgent}</span>
                     </div>
                 </div>
+                <div className="stat-card mttr">
+                    <div className="stat-icon">⚡</div>
+                    <div className="stat-info">
+                        <span className="stat-label">平均完修</span>
+                        <span className="stat-value">{stats.mttr}<small style={{ fontSize: '0.5em' }}>小時</small></span>
+                    </div>
+                </div>
             </div>
 
             {/* 圖表區域 (New) */}
@@ -263,6 +309,50 @@ function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair }) {
                                 <Tooltip cursor={{ fill: 'transparent' }} />
                                 <Legend />
                                 <Bar dataKey="count" name="報修數" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            </div>
+
+            {/* 進階分析圖表 (Row 2) */}
+            <div className="charts-container">
+                <div className="chart-card">
+                    <h3>🏆 報修王排行榜 (Top 5)</h3>
+                    <div className="chart-wrapper">
+                        <ResponsiveContainer width="100%" height={300}>
+                            <BarChart
+                                layout="vertical"
+                                data={stats.reporterData}
+                                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                            >
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis type="number" allowDecimals={false} />
+                                <YAxis dataKey="name" type="category" width={80} />
+                                <Tooltip cursor={{ fill: 'transparent' }} />
+                                <Bar dataKey="count" name="報修次數" fill="#8884d8" radius={[0, 4, 4, 0]}>
+                                    {stats.reporterData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+                <div className="chart-card">
+                    <h3>🔥 熱門報修地點 (Top 10)</h3>
+                    <div className="chart-wrapper">
+                        <ResponsiveContainer width="100%" height={300}>
+                            <BarChart
+                                layout="vertical"
+                                data={stats.roomData}
+                                margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
+                            >
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis type="number" allowDecimals={false} />
+                                <YAxis dataKey="name" type="category" width={100} style={{ fontSize: '12px' }} />
+                                <Tooltip cursor={{ fill: 'transparent' }} />
+                                <Bar dataKey="count" name="報修次數" fill="#ff8042" radius={[0, 4, 4, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>

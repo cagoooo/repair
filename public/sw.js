@@ -1,5 +1,5 @@
 // Service Worker — 快取策略：Network First + 靜態資源快取
-const CACHE_NAME = 'repair-v2.2';
+const CACHE_NAME = 'repair-v2.3';
 const STATIC_ASSETS = [
     './',
     './index.html'
@@ -40,6 +40,8 @@ self.addEventListener('fetch', (event) => {
         url.hostname.includes('gstatic')) {
         return;
     }
+    // 忽略非 http/https 請求 (例如 chrome-extension://)
+    if (!url.protocol.startsWith('http')) return;
 
     event.respondWith(
         fetch(event.request)
@@ -48,7 +50,13 @@ self.addEventListener('fetch', (event) => {
                 if (response.status === 200) {
                     const responseClone = response.clone();
                     caches.open(CACHE_NAME).then((cache) => {
-                        cache.put(event.request, responseClone);
+                        try {
+                            if (event.request.url.startsWith('http')) {
+                                cache.put(event.request, responseClone);
+                            }
+                        } catch (err) {
+                            console.warn('Failed to cache:', event.request.url, err);
+                        }
                     });
                 }
                 return response;
