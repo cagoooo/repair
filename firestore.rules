@@ -6,8 +6,20 @@ service cloud.firestore {
     // 🔧 共用輔助函式
     // ============================
 
-    // 權限檢查：是否為修繕系統管理員
-    function isAdmin() {
+    // 行政系統：認證檢查
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // 行政系統：管理員檢查（以 Firestore users 文件的 role 欄位為準）
+    function isStaffAdmin() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/artifacts/default-app-id/public/data/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/artifacts/default-app-id/public/data/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // 修繕系統：管理員檢查（以 email 為準）
+    function isRepairAdmin() {
       return request.auth != null && (
         request.auth.token.email in ['ipad@mail2.smes.tyc.edu.tw'] ||
         (
@@ -17,63 +29,7 @@ service cloud.firestore {
       );
     }
 
-    // ============================
-    // 👤 【修繕系統】管理員設定
-    // ============================
-    match /system/adminConfig {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    // ============================
-    // 📋 【修繕系統】地圖設定
-    // ============================
-    match /system/mapConfig {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    // ============================
-    // 🔔 【修繕系統】通知設定
-    // ============================
-    match /system/notificationConfig {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    // ============================
-    // 🔧 【修繕系統】報修單
-    // ============================
-    match /repairs/{repairId} {
-      allow read: if true;
-
-      // 建立：任何人皆可（含輸入驗證）
-      allow create: if isValidRepair(request.resource.data);
-
-      // 更新：管理員 或 (撤銷待處理報修)
-      allow update: if isAdmin() || (
-        resource.data.status == 'pending' &&
-        request.resource.data.status == 'cancelled' &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
-      );
-
-      // 刪除：僅限管理員
-      allow delete: if isAdmin();
-
-      // 管理員處理備註 (subcollection)
-      match /comments/{commentId} {
-        allow read: if true;
-        allow create: if isAdmin()
-          && request.resource.data.text is string
-          && request.resource.data.text.size() > 0
-          && request.resource.data.text.size() <= 500;
-        allow update, delete: if isAdmin();
-      }
-    }
-
-    // ============================
-    // ✅ 【修繕系統】報修單欄位驗證函式
-    // ============================
+    // 修繕系統：報修單欄位驗證函式
     function isValidRepair(data) {
       return data.keys().hasAll([
         'roomId', 'roomCode', 'roomName',
@@ -93,6 +49,53 @@ service cloud.firestore {
       && data.priority in ['low', 'normal', 'high', 'urgent']
       && data.status == 'pending'
       && data.category in ['IT', 'GENERAL'];
+    }
+
+    // ============================
+    // 👤 【修繕系統】管理員設定
+    // ============================
+    match /system/adminConfig {
+      allow read: if true;
+      allow write: if isRepairAdmin();
+    }
+
+    // ============================
+    // 📋 【修繕系統】地圖設定
+    // ============================
+    match /system/mapConfig {
+      allow read: if true;
+      allow write: if isRepairAdmin();
+    }
+
+    // ============================
+    // 🔔 【修繕系統】通知設定
+    // ============================
+    match /system/notificationConfig {
+      allow read: if true;
+      allow write: if isRepairAdmin();
+    }
+
+    // ============================
+    // 🔧 【修繕系統】報修單
+    // ============================
+    match /repairs/{repairId} {
+      allow read: if true;
+      allow create: if isValidRepair(request.resource.data);
+      allow update: if isRepairAdmin() || (
+        resource.data.status == 'pending' &&
+        request.resource.data.status == 'cancelled' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+      );
+      allow delete: if isRepairAdmin();
+
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isRepairAdmin()
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 500;
+        allow update, delete: if isRepairAdmin();
+      }
     }
 
     // ============================
@@ -122,6 +125,82 @@ service cloud.firestore {
     // ============================
     match /usage/{uid}/{rest=**} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // ============================
+    // 🏫 【行政業務系統】主要資料集合
+    // ============================
+    match /artifacts/{appId}/public/data/{collection}/{docId} {
+
+      // ── USERS ──
+      // 任何已認證用戶可讀取所有用戶資料
+      allow read: if isAuthenticated() && collection == 'users';
+
+      // 用戶可建立自己的文件（UID 必須符合）
+      allow create: if isAuthenticated()
+        && collection == 'users'
+        && docId == request.auth.uid;
+
+      // 用戶可更新自己的文件
+      allow update: if isAuthenticated()
+        && collection == 'users'
+        && docId == request.auth.uid;
+
+      // 管理員可對任何用戶進行建立/更新/刪除
+      allow create, update, delete: if isAuthenticated()
+        && collection == 'users'
+        && isStaffAdmin();
+
+      // ── SCHOOL_EVENTS ──
+      allow read: if isAuthenticated() && collection == 'school_events';
+      allow create: if isAuthenticated() && collection == 'school_events';
+      allow update: if isAuthenticated() && collection == 'school_events';
+      allow delete: if isAuthenticated() && collection == 'school_events';
+
+      // ── TAGS ──
+      allow read, create: if isAuthenticated() && collection == 'tags';
+      allow update, delete: if isAuthenticated()
+        && collection == 'tags'
+        && isStaffAdmin();
+
+      // ── EVENT_TEMPLATES ──
+      allow read: if isAuthenticated() && collection == 'event_templates';
+      allow create: if isAuthenticated() && collection == 'event_templates';
+      allow update, delete: if isAuthenticated()
+        && collection == 'event_templates'
+        && (resource.data.createdBy == request.auth.uid || isStaffAdmin());
+
+      // ── REMINDERS ──
+      allow read, create, update, delete: if isAuthenticated()
+        && collection == 'reminders';
+    }
+
+    // ============================
+    // 💬 【行政業務系統】行程留言（子集合）
+    // ============================
+    match /artifacts/{appId}/public/data/school_events/{eventId}/comments/{commentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated()
+        && resource.data.authorId == request.auth.uid;
+      allow delete: if isAuthenticated()
+        && (resource.data.authorId == request.auth.uid || isStaffAdmin());
+    }
+
+    // ============================
+    // 📊 【行政業務系統】LINE API 使用統計（全域）
+    // ============================
+    match /line_api_stats/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if false; // 只有 Cloud Functions 可寫入
+    }
+
+    // ============================
+    // 👥 【行政業務系統】LINE 追蹤者記錄（全域）
+    // ============================
+    match /line_followers/{followerId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // 只有 Cloud Functions 可寫入
     }
 
     // ============================
