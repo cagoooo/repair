@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 
@@ -21,17 +21,12 @@ let storage = null;
 if (firebaseConfig.apiKey) {
     try {
         app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
 
-        // 啟用離線持久化
-        enableIndexedDbPersistence(db).catch((err) => {
-            if (err.code === 'failed-precondition') {
-                // 多個分頁打開時，只有一個能啟用持久化
-                console.warn('Firestore persistence failed: Multiple tabs open');
-            } else if (err.code === 'unimplemented') {
-                // 瀏覽器不支援
-                console.warn('Firestore persistence not supported by browser');
-            }
+        // ✅ 新版離線快取寫法（取代已棄用的 enableIndexedDbPersistence）
+        db = initializeFirestore(app, {
+            cache: persistentLocalCache({
+                tabManager: persistentMultipleTabManager() // 支援多分頁同時開啟
+            })
         });
 
         auth = getAuth(app);
