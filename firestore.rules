@@ -1,0 +1,134 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================
+    // 🔧 共用輔助函式
+    // ============================
+
+    // 權限檢查：是否為修繕系統管理員
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.email in ['ipad@mail2.smes.tyc.edu.tw'] ||
+        (
+          exists(/databases/$(database)/documents/system/adminConfig) &&
+          request.auth.token.email in get(/databases/$(database)/documents/system/adminConfig).data.emails
+        )
+      );
+    }
+
+    // ============================
+    // 👤 【修繕系統】管理員設定
+    // ============================
+    match /system/adminConfig {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ============================
+    // 📋 【修繕系統】地圖設定
+    // ============================
+    match /system/mapConfig {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ============================
+    // 🔔 【修繕系統】通知設定
+    // ============================
+    match /system/notificationConfig {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ============================
+    // 🔧 【修繕系統】報修單
+    // ============================
+    match /repairs/{repairId} {
+      allow read: if true;
+
+      // 建立：任何人皆可（含輸入驗證）
+      allow create: if isValidRepair(request.resource.data);
+
+      // 更新：管理員 或 (撤銷待處理報修)
+      allow update: if isAdmin() || (
+        resource.data.status == 'pending' &&
+        request.resource.data.status == 'cancelled' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+      );
+
+      // 刪除：僅限管理員
+      allow delete: if isAdmin();
+
+      // 管理員處理備註 (subcollection)
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isAdmin()
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 500;
+        allow update, delete: if isAdmin();
+      }
+    }
+
+    // ============================
+    // ✅ 【修繕系統】報修單欄位驗證函式
+    // ============================
+    function isValidRepair(data) {
+      return data.keys().hasAll([
+        'roomId', 'roomCode', 'roomName',
+        'category', 'itemType', 'description',
+        'priority', 'reporterName', 'status', 'createdAt'
+      ])
+      && data.roomId is string
+      && data.category is string
+      && data.description is string
+      && data.reporterName is string
+      && data.priority is string
+      && data.status is string
+      && data.description.size() > 0
+      && data.description.size() <= 1000
+      && data.reporterName.size() > 0
+      && data.reporterName.size() <= 50
+      && data.priority in ['low', 'normal', 'high', 'urgent']
+      && data.status == 'pending'
+      && data.category in ['IT', 'GENERAL'];
+    }
+
+    // ============================
+    // 🤖 【AI 客服系統】使用者對話記錄
+    // ============================
+    match /chats/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // ============================
+    // 📚 【AI 客服系統】知識庫
+    // ============================
+    match /knowledge/{doc} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // ============================
+    // ⚙️ 【AI 客服系統】管理員設定
+    // ============================
+    match /config/{doc} {
+      allow read, write: if false;
+    }
+
+    // ============================
+    // 📊 【AI 客服系統】使用量統計
+    // ============================
+    match /usage/{uid}/{rest=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // ============================
+    // 🚫 預設拒絕（安全兜底）
+    // ============================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
