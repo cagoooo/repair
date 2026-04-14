@@ -64,6 +64,9 @@ npm run build
 
 ## 📝 版本紀錄
 
+- **v0.7.3** (2026/04/14):
+  - 📏 **標籤排版最終修正 (Label Layout Final Fix)**：採用強規式 CSS 策略（`width: max-content` 與 `!important` 權限），徹底解決在某些行動裝置或極窄空間下，編號仍會發生斷行的問題。
+
 - **v0.7.2** (2026/04/14):
   - 📏 **標籤版型強規化 (Label Layout Standardization)**：強制地圖標籤以單行 (Single Row) 呈現，解決部分包含空格的教室編號（如 C21 1）在窄小的手機視圖下發生非預期分行的問題，確保視覺統一與美觀。
 

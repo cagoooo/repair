@@ -141,19 +141,25 @@
 }
 
 .room-label-box {
-    display: flex;
-    flex-direction: row;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
     align-items: center;
     justify-content: center;
     /* 玻璃擬態基礎樣式 */
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.95) !important; /* 加強不透明度偵測 */
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
-    padding: 1px 3px;
+    padding: 2px 6px !important;
     border-radius: 4px;
-    border: 1.5px solid rgba(255, 255, 255, 0.6);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    border: 1.5px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
     transition: all 0.2s ease;
+    /* 強制不換行與不收縮核心屬性 */
+    width: max-content !important;
+    min-width: max-content !important;
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
 }
 
 /* 當房間狀態不為正常時，標籤背景調整 */
@@ -164,12 +170,12 @@
 }
 
 .room-label {
-    font-weight: 700;
+    font-weight: 800; /* 加粗 */
     text-align: center;
-    line-height: 1.1;
-    white-space: nowrap; /* 強制不換行，解決垂直文字問題 */
+    line-height: 1;
+    white-space: nowrap !important; 
     user-select: none;
-    color: #1e293b;
+    color: #0f172a; /* 深化顏色 */
     transition: all 0.2s ease;
 }
 
