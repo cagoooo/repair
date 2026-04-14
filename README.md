@@ -64,6 +64,9 @@ npm run build
 
 ## 📝 版本紀錄
 
+- **v0.7.4** (2026/04/14):
+  - 🛠️ **新增「系統維護」工具 (Maintenance Tools)**：於設定頁面新增「強制更新與清除快取」按鈕。此功能會自動註銷 Service Workers 並排空 Cache Storage，解決因瀏覽器過度快取導致無法即時看到最新樣式或功能的問題。
+
 - **v0.7.3** (2026/04/14):
   - 📏 **標籤排版最終修正 (Label Layout Final Fix)**：採用強規式 CSS 策略（`width: max-content` 與 `!important` 權限），徹底解決在某些行動裝置或極窄空間下，編號仍會發生斷行的問題。
 

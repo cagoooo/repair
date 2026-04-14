@@ -704,7 +704,33 @@ function App() {
     }
   };
 
-  // 清除所有資料
+  // [NEW] 強制更新並清除快取
+  const handleForceUpdate = async () => {
+    if (confirm('確定要強制更新並清除暫存嗎？\n這將會清除瀏覽器快取並重新載入網頁，確保您看到的是最新版本。')) {
+      try {
+        // 1. 註銷所有 Service Workers
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          for (let registration of registrations) {
+            await registration.unregister();
+          }
+        }
+
+        // 2. 清除 Cache Storage
+        if ('caches' in window) {
+          const cacheNames = await caches.keys();
+          await Promise.all(cacheNames.map(name => caches.delete(name)));
+        }
+
+        // 3. 強制從伺服器重新載入
+        window.location.reload(true);
+      } catch (error) {
+        console.error('清除快取失敗:', error);
+        toast.error('清除失敗，請手動重新整理網頁。');
+      }
+    }
+  };
+
   const handleClearData = () => {
     if (!isAdmin) {
       toast.warning('權限不足：僅管理員可清除資料');
@@ -900,6 +926,19 @@ function App() {
                     <span className="stat-label">已完成</span>
                     <span className="stat-value completed">{repairs.filter(r => r.status === 'completed').length}</span>
                   </div>
+                </div>
+              </div>
+
+              {/* [NEW] 系統維護 */}
+              <div className="settings-card maintenance-card">
+                <div className="card-header">
+                  <h3>🛠️ 系統維護</h3>
+                </div>
+                <div className="maintenance-content">
+                  <p className="text-muted small">若發現網頁樣式異常或功能未更新，請嘗試強制清除暫存。</p>
+                  <button className="btn btn-primary w-100" style={{ marginTop: '15px' }} onClick={handleForceUpdate}>
+                    🔄 強制更新與清除快取
+                  </button>
                 </div>
               </div>
 
