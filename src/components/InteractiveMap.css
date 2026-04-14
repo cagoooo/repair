@@ -142,7 +142,7 @@
 
 .room-label-box {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
     justify-content: center;
     /* 玻璃擬態基礎樣式 */
