@@ -9,37 +9,32 @@ function InteractiveMap({ imageUrl, rooms, repairs, onRoomClick, onEditMap }) {
     const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+    const [selectedRoomId, setSelectedRoomId] = useState(null);
     const containerRef = useRef(null);
     const contentRef = useRef(null);
 
     // Zoom Handling (Wheel)
     const handleWheel = useCallback((e) => {
-        if (e.ctrlKey) {
+        if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
-            const scaleAmount = -e.deltaY * 0.001;
+            const scaleAmount = -e.deltaY * 0.0015;
             setTransform(t => ({
                 ...t,
-                scale: Math.max(0.5, Math.min(4, t.scale + scaleAmount))
+                scale: Math.max(0.3, Math.min(5, t.scale + scaleAmount))
             }));
-        } else {
-            // Pan with wheel if not zooming? 
-            // Standard behavior: vertical scroll pans vertical, shift+wheel pans horizontal
-            // But let's just allow native scroll if not ctrl?
         }
     }, []);
 
+    // Zoom level for CSS classes
+    const zoomLevel = transform.scale < 0.8 ? 'low' : transform.scale > 2 ? 'high' : 'medium';
+
     // Drag to Pan
     const handleMouseDown = (e) => {
-        // Only drag if not clicking a room (handled by room click propagation stop?)
-        // e.button === 0 (Left click)
-        // If clicking room, we might still want to support drag if they hold and move?
-        // But let's simple: background drag = pan.
-
         if (e.target.closest('.room-interactive')) return;
 
         setIsDragging(true);
         setDragStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
-        e.preventDefault(); // Prevent text selection etc
+        e.preventDefault(); 
     };
 
     const handleMouseMove = (e) => {
@@ -55,15 +50,14 @@ function InteractiveMap({ imageUrl, rooms, repairs, onRoomClick, onEditMap }) {
         setIsDragging(false);
     };
 
-    // Category Colors (Shared with MapEditor logic or CSS?)
-    // Using CSS classes based on category is better if available, or inline styles
+    // Category Colors
     const getCategoryColor = (category) => {
         switch (category) {
-            case 'classroom': return 'rgba(59, 130, 246, 0.75)';
-            case 'office': return 'rgba(139, 92, 246, 0.75)';
-            case 'special': return 'rgba(16, 185, 129, 0.75)';
-            case 'utility': return 'rgba(107, 114, 128, 0.75)';
-            default: return 'rgba(245, 158, 11, 0.75)';
+            case 'classroom': return 'rgba(59, 130, 246, 0.6)';
+            case 'office': return 'rgba(139, 92, 246, 0.6)';
+            case 'special': return 'rgba(16, 185, 129, 0.6)';
+            case 'utility': return 'rgba(107, 114, 128, 0.6)';
+            default: return 'rgba(245, 158, 11, 0.6)';
         }
     };
 
@@ -73,13 +67,7 @@ function InteractiveMap({ imageUrl, rooms, repairs, onRoomClick, onEditMap }) {
 
         const roomRepairs = repairs.filter(r => {
             if (r.status === 'completed' || r.status === 'cancelled') return false;
-
-            // Prioritize unique code matching if available
-            if (r.roomCode && room.code) {
-                return r.roomCode === room.code;
-            }
-
-            // Fallback for legacy data (name matching)
+            if (r.roomCode && room.code) return r.roomCode === room.code;
             return r.roomName === room.name;
         });
 
@@ -107,7 +95,7 @@ function InteractiveMap({ imageUrl, rooms, repairs, onRoomClick, onEditMap }) {
     }
 
     return (
-        <div className="interactive-map-container">
+        <div className={`interactive-map-container zoom-${zoomLevel}`}>
             {onEditMap && (
                 <button
                     className="map-edit-btn"
@@ -117,7 +105,7 @@ function InteractiveMap({ imageUrl, rooms, repairs, onRoomClick, onEditMap }) {
                 </button>
             )}
             <div
-                className="map-wrapper"
+                className={`map-wrapper ${isDragging ? 'is-dragging' : ''}`}
                 ref={containerRef}
                 onWheel={handleWheel}
                 onMouseDown={handleMouseDown}
@@ -132,7 +120,7 @@ function InteractiveMap({ imageUrl, rooms, repairs, onRoomClick, onEditMap }) {
                     style={{
                         transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
                         transformOrigin: 'top left',
-                        transition: isDragging ? 'none' : 'transform 0.1s ease-out'
+                        transition: isDragging ? 'none' : 'transform 0.15s cubic-bezier(0.2, 0, 0, 1)'
                     }}
                 >
                     <img
@@ -144,34 +132,37 @@ function InteractiveMap({ imageUrl, rooms, repairs, onRoomClick, onEditMap }) {
 
                     {rooms.map(room => {
                         const { status, count } = getRoomData(room);
+                        const isSelected = selectedRoomId === room.id;
 
                         return (
                             <div
                                 key={room.id}
-                                className={`room-interactive status-${status}`}
+                                className={`room-interactive status-${status} ${isSelected ? 'selected' : ''}`}
                                 style={{
                                     left: `${room.bounds.x}%`,
                                     top: `${room.bounds.y}%`,
                                     width: `${room.bounds.width}%`,
                                     height: `${room.bounds.height}%`,
                                     backgroundColor: status === 'normal' ? getCategoryColor(room.category) : undefined,
-                                    // Let CSS handle background for non-normal statuses
                                 }}
                                 onClick={(e) => {
                                     e.stopPropagation();
+                                    setSelectedRoomId(room.id);
                                     onRoomClick(room);
                                 }}
                                 title={`${room.name} (${room.code}) - ${count} 件待修`}
                             >
                                 <div className="room-label-container">
-                                    <span className="room-label code">{room.code}</span>
-                                    {room.name && (
-                                        <span className="room-label name">
-                                            {room.name.startsWith(room.code)
-                                                ? room.name.slice(room.code.length).trim()
-                                                : room.name}
-                                        </span>
-                                    )}
+                                    <div className="room-label-box">
+                                        <span className="room-label code">{room.code}</span>
+                                        {room.name && (
+                                            <span className="room-label name">
+                                                {room.name.startsWith(room.code)
+                                                    ? room.name.slice(room.code.length).trim()
+                                                    : room.name}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {count > 0 && (
@@ -184,7 +175,10 @@ function InteractiveMap({ imageUrl, rooms, repairs, onRoomClick, onEditMap }) {
                     })}
                 </div>
             </div>
-
+            
+            <div className="map-controls-hint">
+                💡 {navigator.maxTouchPoints > 0 ? '雙指縮放或拖動地圖' : 'Ctrl + 滾輪縮放，拖動地圖移動'}
+            </div>
         </div>
     );
 }
