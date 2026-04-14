@@ -155,13 +155,6 @@ function InteractiveMap({ imageUrl, rooms, repairs, onRoomClick, onEditMap }) {
                                 <div className="room-label-container">
                                     <div className="room-label-box">
                                         <span className="room-label code">{room.code}</span>
-                                        {room.name && (
-                                            <span className="room-label name">
-                                                {room.name.startsWith(room.code)
-                                                    ? room.name.slice(room.code.length).trim()
-                                                    : room.name}
-                                            </span>
-                                        )}
                                     </div>
                                 </div>
 

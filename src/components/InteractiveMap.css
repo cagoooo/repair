@@ -144,17 +144,16 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1px;
+    justify-content: center;
     /* 玻璃擬態基礎樣式 */
-    background: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
-    padding: 2px 4px;
+    padding: 1px 3px;
     border-radius: 4px;
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    border: 1.5px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     transition: all 0.2s ease;
-    max-width: 120%; /* 允許稍微超出房間範圍，避免文字擠壓 */
 }
 
 /* 當房間狀態不為正常時，標籤背景調整 */
@@ -180,13 +179,7 @@
 }
 
 .room-label.code {
-    font-size: clamp(8px, 1.5vw, 11px);
-}
-
-.room-label.name {
-    font-size: clamp(7px, 1.2vw, 9px);
-    opacity: 0.9;
-    font-weight: 500;
+    font-size: clamp(8px, 1.6vw, 13px);
 }
 
 /* --- 縮放感知樣式優化 --- */
@@ -203,16 +196,12 @@
     background: rgba(255, 255, 255, 0.6);
 }
 
-/* 高縮放 (細節查看)：放大標籤，顯示清晰名稱 */
+/* 高縮放 (細節查看)：放大標籤字體 */
 .zoom-high .room-label.code {
-    font-size: 14px;
-}
-.zoom-high .room-label.name {
-    font-size: 11px;
+    font-size: 16px;
 }
 .zoom-high .room-label-box {
-    padding: 4px 8px;
-    gap: 3px;
+    padding: 3px 6px;
 }
 
 /* 修補報修數量顯示 */
