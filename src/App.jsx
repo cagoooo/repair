@@ -818,10 +818,15 @@ function App() {
               onEditMap={isAdmin ? () => setShowEditor(true) : undefined}
             />
 
+            <div className="hint-banner info">
+              <span>💡</span>
+              <p>無需登入，直接「點擊地圖上的教室」即可開始報修。</p>
+            </div>
+
             {rooms.length === 0 && mapImage && isAdmin && (
               <div className="hint-banner">
-                <span>💡</span>
-                <p>提示：點擊「編輯地圖」按鈕來標記教室位置</p>
+                <span>🛠️</span>
+                <p>管理員提示：點擊「編輯地圖」按鈕來標記教室位置</p>
               </div>
             )}
           </div>
@@ -892,14 +897,19 @@ function App() {
                   </div>
                   <div className="user-details">
                     <h4>{user?.displayName || '訪客'}</h4>
-                    <p className="user-email">{user?.email || '尚未登入'}</p>
+                    <p className="user-email">{user?.email || '無需登入即可使用報修功能'}</p>
                   </div>
                 </div>
                 <div className="card-action">
                   {!user ? (
-                    <button className="btn btn-primary w-100" onClick={handleLogin}>
-                      🔵 Google 帳號登入
-                    </button>
+                    <>
+                      <button className="btn btn-primary w-100" onClick={handleLogin}>
+                        🔵 管理員登入 (Google)
+                      </button>
+                      <p className="text-muted small" style={{ marginTop: '10px', textAlign: 'center' }}>
+                        ※ 一般報修無需登入，直接點擊地圖即可作業。
+                      </p>
+                    </>
                   ) : (
                     <button className="btn btn-secondary w-100" onClick={handleLogout}>
                       🚪 登出
