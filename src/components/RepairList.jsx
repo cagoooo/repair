@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { REPAIR_CATEGORIES, REPAIR_STATUS, REPAIR_PRIORITY } from '../data/repairCategories';
 import { useToast } from './Toast';
+import { isValidImageUrl } from '../utils/sanitize';
 import RepairPrintDetail from './RepairPrintDetail';
 import './RepairList.css';
 
@@ -190,6 +191,88 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
             toast.error('備註新增失敗');
         } finally {
             setCommentLoading(false);
+        }
+    };
+
+    // 管理員上傳照片
+    const MAX_ADMIN_IMAGES = 5;
+    const [adminUploadingId, setAdminUploadingId] = useState(null);
+    const [adminUploadProgress, setAdminUploadProgress] = useState('');
+    const adminFileRef = useRef(null);
+
+    const handleAdminImageUpload = async (repairId, existingImages, files) => {
+        if (!files || files.length === 0) return;
+
+        const remaining = MAX_ADMIN_IMAGES - existingImages.length;
+        if (remaining <= 0) {
+            toast.warning(`每筆報修最多 ${MAX_ADMIN_IMAGES} 張照片`);
+            return;
+        }
+
+        const validFiles = [];
+        for (const file of Array.from(files).slice(0, remaining)) {
+            const isImage = (file.type && file.type.startsWith('image/')) ||
+                ['jpg','jpeg','png','gif','webp','heic','heif','bmp'].includes(file.name.toLowerCase().split('.').pop());
+            if (!isImage) continue;
+            if (file.size > 20 * 1024 * 1024) {
+                toast.warning(`「${file.name}」超過 20MB，已跳過`);
+                continue;
+            }
+            validFiles.push(file);
+        }
+
+        if (validFiles.length === 0) return;
+
+        setAdminUploadingId(repairId);
+        const newUrls = [];
+
+        try {
+            const { storage, db } = await import('../utils/firebase');
+            const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
+            const { doc, updateDoc } = await import('firebase/firestore');
+            const imageCompression = (await import('browser-image-compression')).default;
+
+            if (!storage || !db) throw new Error('Firebase not initialized');
+
+            for (let i = 0; i < validFiles.length; i++) {
+                const img = validFiles[i];
+                setAdminUploadProgress(`壓縮上傳中 ${i + 1}/${validFiles.length}...`);
+                try {
+                    const compressed = await imageCompression(img, {
+                        maxSizeMB: 0.3,
+                        maxWidthOrHeight: 1200,
+                        useWebWorker: true,
+                        fileType: 'image/jpeg',
+                        initialQuality: 0.8,
+                    });
+                    const safeName = (img.name || `admin_photo_${i}`).replace(/\.\w+$/, '.jpg');
+                    const storageRef = ref(storage, `repair-images/${Date.now()}_${safeName}`);
+                    const snapshot = await uploadBytes(storageRef, compressed, { contentType: 'image/jpeg' });
+                    const url = await getDownloadURL(snapshot.ref);
+                    newUrls.push(url);
+                } catch (imgErr) {
+                    console.error(`Admin photo ${i + 1} upload failed:`, imgErr);
+                    toast.warning(`第 ${i + 1} 張照片上傳失敗`);
+                }
+            }
+
+            if (newUrls.length > 0) {
+                const allUrls = [...existingImages, ...newUrls].filter(url => isValidImageUrl(url));
+                const repairRef = doc(db, 'repairs', repairId);
+                await updateDoc(repairRef, {
+                    imageUrls: allUrls,
+                    imageUrl: allUrls[0] || null,
+                    updatedAt: new Date().toISOString()
+                });
+                toast.success(`已上傳 ${newUrls.length} 張照片`);
+            }
+        } catch (err) {
+            console.error('Admin image upload error:', err);
+            toast.error('照片上傳失敗：' + err.message);
+        } finally {
+            setAdminUploadingId(null);
+            setAdminUploadProgress('');
+            if (adminFileRef.current) adminFileRef.current.value = '';
         }
     };
 
@@ -422,10 +505,10 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
                                 {/* 展開詳情區 */}
                                 {isExpanded && (
                                     <div className="repair-detail-panel">
-                                        {/* 多圖畫廊 */}
-                                        {images.length > 0 && (
-                                            <div className="detail-section">
-                                                <h4>📷 現場照片</h4>
+                                        {/* 多圖畫廊 + 管理員上傳 */}
+                                        <div className="detail-section">
+                                            <h4>📷 現場照片 {images.length > 0 && `(${images.length})`}</h4>
+                                            {images.length > 0 && (
                                                 <div className="detail-image-gallery">
                                                     {images.map((url, idx) => (
                                                         <div key={idx} className="gallery-item" onClick={() => setPreviewImage(url)}>
@@ -433,8 +516,36 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
                                                         </div>
                                                     ))}
                                                 </div>
-                                            </div>
-                                        )}
+                                            )}
+                                            {images.length === 0 && !isAdmin && (
+                                                <p className="no-comments">無照片</p>
+                                            )}
+                                            {isAdmin && images.length < MAX_ADMIN_IMAGES && (
+                                                <div className="admin-upload-area">
+                                                    <input
+                                                        type="file"
+                                                        ref={adminFileRef}
+                                                        accept="image/*,.heic,.heif"
+                                                        multiple
+                                                        style={{ display: 'none' }}
+                                                        onChange={(e) => handleAdminImageUpload(repair.id, images, e.target.files)}
+                                                    />
+                                                    {adminUploadingId === repair.id ? (
+                                                        <div className="admin-upload-progress">
+                                                            <span className="upload-spinner"></span>
+                                                            {adminUploadProgress}
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            className="btn btn-admin-upload"
+                                                            onClick={() => adminFileRef.current?.click()}
+                                                        >
+                                                            📎 上傳照片 (還可加 {MAX_ADMIN_IMAGES - images.length} 張)
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
 
                                         {/* 時間軸 */}
                                         <div className="detail-section">
