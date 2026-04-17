@@ -6,7 +6,7 @@ import { REPAIR_CATEGORIES, REPAIR_STATUS, REPAIR_PRIORITY } from '../data/repai
  * 報修單列印元件
  * 僅在列印模式下顯示，或透過 CSS 控制顯示
  */
-const RepairPrintDetail = ({ repair }) => {
+const RepairPrintDetail = ({ repair, comments = [] }) => {
     if (!repair) return null;
 
     // 格式化日期
@@ -92,6 +92,24 @@ const RepairPrintDetail = ({ repair }) => {
                                     <img src={repair.imageUrl} alt="現場照片" />
                                 </div>
                             )}
+                        </div>
+                    </div>
+                )}
+
+                {/* 處理備註區 */}
+                {comments.length > 0 && (
+                    <div className="print-section">
+                        <h3>💬 處理備註 ({comments.length})</h3>
+                        <div className="print-comments">
+                            {comments.map((c, idx) => (
+                                <div key={c.id || idx} className="print-comment-item">
+                                    <div className="print-comment-header">
+                                        <strong>{c.author || '管理員'}</strong>
+                                        <span>{c.createdAt ? formatDate(c.createdAt) : ''}</span>
+                                    </div>
+                                    <p>{c.text}</p>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}

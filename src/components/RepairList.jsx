@@ -198,7 +198,11 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
     const MAX_ADMIN_IMAGES = 5;
     const [adminUploadingId, setAdminUploadingId] = useState(null);
     const [adminUploadProgress, setAdminUploadProgress] = useState('');
-    const adminFileRef = useRef(null);
+
+    const triggerAdminFileInput = (repairId) => {
+        const input = document.getElementById(`admin-upload-${repairId}`);
+        if (input) input.click();
+    };
 
     const handleAdminImageUpload = async (repairId, existingImages, files) => {
         if (!files || files.length === 0) return;
@@ -272,7 +276,8 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
         } finally {
             setAdminUploadingId(null);
             setAdminUploadProgress('');
-            if (adminFileRef.current) adminFileRef.current.value = '';
+            const fileInput = document.getElementById(`admin-upload-${repairId}`);
+            if (fileInput) fileInput.value = '';
         }
     };
 
@@ -309,14 +314,15 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
         return [];
     };
 
+    // 列印用的備註
+    const [printComments, setPrintComments] = useState([]);
+
     // 處理列印
     const handlePrint = (repair) => {
         setPrintingRepair(repair);
-        // 延遲執行列印，確保 DOM 已更新
+        setPrintComments(commentsMap[repair.id] || []);
         setTimeout(() => {
             window.print();
-            // 列印對話框關閉後（或立即），重置狀態（視瀏覽器行為而定，通常保持狀態也無妨，因為 CSS 會隱藏）
-            // 但為了保險，可以在 window.onafterprint 大約處理，或不重置也行，因為 display:none
         }, 300);
     };
 
@@ -524,11 +530,14 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
                                                 <div className="admin-upload-area">
                                                     <input
                                                         type="file"
-                                                        ref={adminFileRef}
+                                                        id={`admin-upload-${repair.id}`}
                                                         accept="image/*,.heic,.heif"
                                                         multiple
                                                         style={{ display: 'none' }}
-                                                        onChange={(e) => handleAdminImageUpload(repair.id, images, e.target.files)}
+                                                        onChange={(e) => {
+                                                            handleAdminImageUpload(repair.id, images, e.target.files);
+                                                            e.target.value = '';
+                                                        }}
                                                     />
                                                     {adminUploadingId === repair.id ? (
                                                         <div className="admin-upload-progress">
@@ -538,7 +547,7 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
                                                     ) : (
                                                         <button
                                                             className="btn btn-admin-upload"
-                                                            onClick={() => adminFileRef.current?.click()}
+                                                            onClick={() => triggerAdminFileInput(repair.id)}
                                                         >
                                                             📎 上傳照片 (還可加 {MAX_ADMIN_IMAGES - images.length} 張)
                                                         </button>
@@ -669,7 +678,7 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
 
             {/* 列印用容器 (僅在列印時顯示) */}
             <div className={`print-container-wrapper ${printingRepair ? 'printing' : ''}`}>
-                <RepairPrintDetail repair={printingRepair} />
+                <RepairPrintDetail repair={printingRepair} comments={printComments} />
             </div>
         </div>
     );

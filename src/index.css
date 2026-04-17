@@ -553,6 +553,35 @@ h3 {
     object-fit: contain;
   }
 
+  .print-comments {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 0;
+  }
+
+  .print-comment-item {
+    padding: 10px 14px;
+    border-bottom: 1px solid #eee;
+  }
+
+  .print-comment-item:last-child {
+    border-bottom: none;
+  }
+
+  .print-comment-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 4px;
+  }
+
+  .print-comment-item p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
   .print-footer-section {
     display: flex;
     justify-content: space-between;
