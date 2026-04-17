@@ -708,6 +708,10 @@
     transition: all 0.2s;
 }
 
+.gallery-item {
+    position: relative;
+}
+
 .gallery-item:hover {
     border-color: #3b82f6;
     transform: scale(1.05);
@@ -717,6 +721,38 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+    cursor: pointer;
+}
+
+.gallery-delete-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(239, 68, 68, 0.85);
+    color: #fff;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 2;
+    line-height: 1;
+}
+
+.gallery-item:hover .gallery-delete-btn {
+    opacity: 1;
+}
+
+.gallery-delete-btn:hover {
+    background: #dc2626;
+    transform: scale(1.15);
 }
 
 /* Admin Upload */

@@ -281,6 +281,50 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
         }
     };
 
+    // 管理員刪除單張照片
+    const handleDeleteImage = async (repairId, imageUrl, allImages) => {
+        if (!window.confirm('確定要刪除這張照片嗎？')) return;
+
+        try {
+            const { storage, db } = await import('../utils/firebase');
+            const { ref, deleteObject } = await import('firebase/storage');
+            const { doc, updateDoc } = await import('firebase/firestore');
+
+            // 從 Storage 刪除檔案
+            if (storage) {
+                try {
+                    const imgRef = ref(storage, imageUrl);
+                    await deleteObject(imgRef);
+                } catch (storageErr) {
+                    // URL 可能是完整 URL 而非 path，改用 URL 擷取 path
+                    try {
+                        const url = new URL(imageUrl);
+                        const path = decodeURIComponent(url.pathname.split('/o/')[1]?.split('?')[0] || '');
+                        if (path) {
+                            const imgRef = ref(storage, path);
+                            await deleteObject(imgRef);
+                        }
+                    } catch {
+                        console.warn('Storage file deletion skipped:', storageErr.message);
+                    }
+                }
+            }
+
+            // 更新 Firestore
+            const updatedUrls = allImages.filter(u => u !== imageUrl);
+            const repairRef = doc(db, 'repairs', repairId);
+            await updateDoc(repairRef, {
+                imageUrls: updatedUrls,
+                imageUrl: updatedUrls[0] || null,
+                updatedAt: new Date().toISOString()
+            });
+            toast.success('照片已刪除');
+        } catch (err) {
+            console.error('Delete image failed:', err);
+            toast.error('刪除照片失敗');
+        }
+    };
+
     // Excel 匯出
     const handleExportExcel = () => {
         const data = filteredRepairs.map(r => ({
@@ -517,8 +561,17 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
                                             {images.length > 0 && (
                                                 <div className="detail-image-gallery">
                                                     {images.map((url, idx) => (
-                                                        <div key={idx} className="gallery-item" onClick={() => setPreviewImage(url)}>
-                                                            <img src={url} alt={`照片 ${idx + 1}`} />
+                                                        <div key={idx} className="gallery-item">
+                                                            <img src={url} alt={`照片 ${idx + 1}`} onClick={() => setPreviewImage(url)} />
+                                                            {isAdmin && (
+                                                                <button
+                                                                    className="gallery-delete-btn"
+                                                                    onClick={(e) => { e.stopPropagation(); handleDeleteImage(repair.id, url, images); }}
+                                                                    title="刪除照片"
+                                                                >
+                                                                    ✕
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     ))}
                                                 </div>
