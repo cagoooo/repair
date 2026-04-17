@@ -68,6 +68,13 @@ function RepairForm({ room, onSubmit, onClose }) {
     const MAX_IMAGES = 3;
     const [selectedImages, setSelectedImages] = useState([]);
     const [previewUrls, setPreviewUrls] = useState([]);
+    const [uploadProgress, setUploadProgress] = useState('');
+
+    const isImageFile = (file) => {
+        if (file.type && file.type.startsWith('image/')) return true;
+        const ext = file.name.toLowerCase().split('.').pop();
+        return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'bmp'].includes(ext);
+    };
 
     const handleImageChange = (e) => {
         const files = Array.from(e.target.files);
@@ -81,12 +88,12 @@ function RepairForm({ room, onSubmit, onClose }) {
 
         const validFiles = [];
         for (const file of files.slice(0, remaining)) {
-            if (!file.type.startsWith('image/')) {
+            if (!isImageFile(file)) {
                 toast.warning(`「${file.name}」不是圖片檔案，已跳過`);
                 continue;
             }
-            if (file.size > 5 * 1024 * 1024) {
-                toast.warning(`「${file.name}」超過 5MB 限制，已跳過`);
+            if (file.size > 20 * 1024 * 1024) {
+                toast.warning(`「${file.name}」超過 20MB 限制，已跳過`);
                 continue;
             }
             validFiles.push(file);
@@ -144,28 +151,39 @@ function RepairForm({ room, onSubmit, onClose }) {
                     const imageCompression = (await import('browser-image-compression')).default;
 
                     if (storage) {
-                        for (const img of selectedImages) {
-                            // 🗜️ 前端壓縮：800px / 200KB
-                            const compressed = await imageCompression(img, {
-                                maxSizeMB: 0.2,
-                                maxWidthOrHeight: 800,
-                                useWebWorker: true,
-                                fileType: 'image/webp'
-                            });
-                            console.log(`壓縮: ${(img.size / 1024).toFixed(0)}KB → ${(compressed.size / 1024).toFixed(0)}KB`);
+                        for (let i = 0; i < selectedImages.length; i++) {
+                            const img = selectedImages[i];
+                            setUploadProgress(`正在上傳照片 ${i + 1}/${selectedImages.length}...`);
+                            try {
+                                const compressed = await imageCompression(img, {
+                                    maxSizeMB: 0.3,
+                                    maxWidthOrHeight: 1200,
+                                    useWebWorker: true,
+                                    fileType: 'image/jpeg',
+                                    initialQuality: 0.8,
+                                });
+                                console.log(`壓縮: ${(img.size / 1024).toFixed(0)}KB → ${(compressed.size / 1024).toFixed(0)}KB`);
 
-                            const storageRef = ref(storage, `repair-images/${Date.now()}_${img.name.replace(/\.\w+$/, '.webp')}`);
-                            const snapshot = await uploadBytes(storageRef, compressed);
-                            const url = await getDownloadURL(snapshot.ref);
-                            imageUrls.push(url);
-                            console.log('Image uploaded:', url);
+                                const safeName = (img.name || `photo_${i}`).replace(/\.\w+$/, '.jpg');
+                                const storageRef = ref(storage, `repair-images/${Date.now()}_${safeName}`);
+                                const snapshot = await uploadBytes(storageRef, compressed, {
+                                    contentType: 'image/jpeg'
+                                });
+                                const url = await getDownloadURL(snapshot.ref);
+                                imageUrls.push(url);
+                                console.log('Image uploaded:', url);
+                            } catch (imgError) {
+                                console.error(`Photo ${i + 1} upload failed:`, imgError);
+                                toast.warning(`第 ${i + 1} 張照片上傳失敗，已跳過`);
+                            }
                         }
+                        setUploadProgress('');
                     } else {
                         console.warn('Firebase Storage not initialized');
                     }
                 } catch (storageError) {
                     console.error('Storage upload failed:', storageError);
-                    toast.warning(`部分圖片上傳失敗 (${storageError.code})，將繼續提交報修單。`);
+                    setUploadProgress('');
                 }
             }
 
@@ -337,7 +355,7 @@ function RepairForm({ room, onSubmit, onClose }) {
                                 <input
                                     type="file"
                                     id="repair-image"
-                                    accept="image/*"
+                                    accept="image/*,.heic,.heif"
                                     multiple
                                     onChange={handleImageChange}
                                     style={{ display: 'none' }}
@@ -367,6 +385,13 @@ function RepairForm({ room, onSubmit, onClose }) {
                             </div>
                         </div>
 
+                        {/* 上傳進度 */}
+                        {uploadProgress && (
+                            <div className="upload-progress-bar">
+                                <span className="upload-spinner"></span> {uploadProgress}
+                            </div>
+                        )}
+
                         {/* 錯誤訊息 */}
                         {errors.submit && (
                             <div className="submit-error">
@@ -389,7 +414,7 @@ function RepairForm({ room, onSubmit, onClose }) {
                                 className="btn btn-primary"
                                 disabled={isSubmitting}
                             >
-                                {isSubmitting ? '提交中...' : '📤 提交報修'}
+                                {isSubmitting ? (uploadProgress || '提交中...') : '📤 提交報修'}
                             </button>
                         </div>
                     </form>

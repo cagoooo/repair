@@ -165,13 +165,17 @@ function App() {
           for (const img of images) {
             try {
               const compressed = await imageCompression(img, {
-                maxSizeMB: 0.2,
-                maxWidthOrHeight: 800,
+                maxSizeMB: 0.3,
+                maxWidthOrHeight: 1200,
                 useWebWorker: true,
-                fileType: 'image/webp'
+                fileType: 'image/jpeg',
+                initialQuality: 0.8,
               });
-              const storageRef = ref(storage, `repair-images/${Date.now()}_${img.name.replace(/\.\w+$/, '.webp')}`);
-              const snapshot = await uploadBytes(storageRef, compressed);
+              const safeName = (img.name || 'photo').replace(/\.\w+$/, '.jpg');
+              const storageRef = ref(storage, `repair-images/${Date.now()}_${safeName}`);
+              const snapshot = await uploadBytes(storageRef, compressed, {
+                contentType: 'image/jpeg'
+              });
               const url = await getDownloadURL(snapshot.ref);
               imageUrls.push(url);
             } catch (imgError) {
