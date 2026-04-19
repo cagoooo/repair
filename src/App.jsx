@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import InteractiveMap from './components/InteractiveMap';
+import MapLoadingIndicator from './components/MapLoadingIndicator';
 import MapEditor from './components/MapEditor';
 import MapUploader from './components/MapUploader';
 import RepairForm from './components/RepairForm';
@@ -50,6 +51,7 @@ function App() {
     }
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [isMapLoading, setIsMapLoading] = useState(true); // 地圖資料載入中
   const [showEditor, setShowEditor] = useState(false);
   const [showRepairForm, setShowRepairForm] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -416,6 +418,8 @@ function App() {
         const savedRooms = localStorage.getItem(STORAGE_KEYS.ROOMS);
         if (savedImage) setMapImage(savedImage);
         if (savedRooms) setRooms(JSON.parse(savedRooms));
+      } finally {
+        setIsMapLoading(false);
       }
     };
 
@@ -831,24 +835,30 @@ function App() {
         {/* 教室地圖頁面 */}
         {!showSetup && activeTab === 'map' && (
           <div className="map-page">
-            <InteractiveMap
-              imageUrl={mapImage}
-              rooms={rooms}
-              repairs={repairs}
-              onRoomClick={handleRoomClick}
-              onEditMap={isAdmin ? () => setShowEditor(true) : undefined}
-            />
+            {isMapLoading ? (
+              <MapLoadingIndicator />
+            ) : (
+              <>
+                <InteractiveMap
+                  imageUrl={mapImage}
+                  rooms={rooms}
+                  repairs={repairs}
+                  onRoomClick={handleRoomClick}
+                  onEditMap={isAdmin ? () => setShowEditor(true) : undefined}
+                />
 
-            <div className="hint-banner info">
-              <span>💡</span>
-              <p>無需登入，直接「點擊地圖上的教室」即可開始報修。</p>
-            </div>
+                <div className="hint-banner info">
+                  <span>💡</span>
+                  <p>無需登入，直接「點擊地圖上的教室」即可開始報修。</p>
+                </div>
 
-            {rooms.length === 0 && mapImage && isAdmin && (
-              <div className="hint-banner">
-                <span>🛠️</span>
-                <p>管理員提示：點擊「編輯地圖」按鈕來標記教室位置</p>
-              </div>
+                {rooms.length === 0 && mapImage && isAdmin && (
+                  <div className="hint-banner">
+                    <span>🛠️</span>
+                    <p>管理員提示：點擊「編輯地圖」按鈕來標記教室位置</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
