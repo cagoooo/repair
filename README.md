@@ -64,6 +64,13 @@ npm run build
 
 ## 📝 版本紀錄
 
+- **v0.8.2** (2026/04/19):
+  - 📱 **教室標籤再瘦身 (Label Extra Compact)**：進一步壓縮手機端教室編號按鈕與字體，解決重疊擠壓問題。
+    - 768px 以下：字體 5-9px、padding 0 2px、邊框 0.5px、徽章 14px
+    - 480px 以下：字體 4-7px、padding 0 1px、徽章 11px
+    - 375px 以下（iPhone SE 等）：字體 3.5-6px、徽章 10px
+    - 加入 `letter-spacing: -0.3px ~ -0.5px` 壓縮字距，同寬度可容納更多字元
+
 - **v0.8.1** (2026/04/19):
   - 📱 **手機端縮放自動重置 (Mobile Zoom Auto-Reset)**：使用者在手機上放大地圖找教室後點擊，開啟報修申請表單時會自動把頁面縮放重置為 100%，再也不會看到被放大扭曲的表單。透過動態改寫 `<meta name="viewport">` 觸發 iOS Safari 的 viewport 重算，0.35 秒後還原原設定讓使用者仍可自由縮放地圖。
 

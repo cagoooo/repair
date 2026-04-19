@@ -254,26 +254,28 @@
 
     /* 縮小標籤字體避免擁擠 */
     .room-label.code {
-        font-size: clamp(6px, 1.8vw, 10px);
+        font-size: clamp(5px, 1.5vw, 9px);
+        letter-spacing: -0.3px;
+        font-weight: 700;
     }
 
     /* 縮小標籤框減少重疊 */
     .room-label-box {
-        padding: 1px 3px !important;
-        border-width: 1px;
+        padding: 0px 2px !important;
+        border-width: 0.5px;
         background: rgba(255, 255, 255, 0.92);
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
-        border-radius: 3px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+        border-radius: 2px;
     }
 
     /* 報修數量徽章縮小 */
     .repair-count {
-        width: 16px;
-        height: 16px;
-        font-size: 0.6rem;
-        top: -5px;
-        right: -5px;
-        border-width: 1.5px;
+        width: 14px;
+        height: 14px;
+        font-size: 0.55rem;
+        top: -4px;
+        right: -4px;
+        border-width: 1px;
     }
 
     /* 手機上點擊區域適度放大感官回饋 */
@@ -286,20 +288,21 @@
 /* iPhone 等小螢幕進一步壓縮 */
 @media (max-width: 480px) {
     .room-label.code {
-        font-size: clamp(5px, 1.9vw, 8px);
+        font-size: clamp(4px, 1.5vw, 7px);
+        letter-spacing: -0.4px;
     }
 
     .room-label-box {
-        padding: 0px 2px !important;
-        border-width: 1px;
+        padding: 0 1px !important;
+        border-width: 0.5px;
         border-radius: 2px;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
     }
 
     .repair-count {
-        width: 13px;
-        height: 13px;
-        font-size: 0.52rem;
+        width: 11px;
+        height: 11px;
+        font-size: 0.48rem;
         top: -3px;
         right: -3px;
         border-width: 1px;
@@ -307,11 +310,37 @@
 
     /* 低縮放時的代碼更迷你，避免擠一團 */
     .zoom-low .room-label.code {
-        font-size: 5px;
+        font-size: 4px;
+        letter-spacing: -0.5px;
     }
 
     .zoom-low .room-label-box {
+        padding: 0 !important;
+        border-width: 0.5px;
+    }
+
+    /* 中縮放也維持緊湊 */
+    .zoom-medium .room-label.code {
+        font-size: clamp(4px, 1.4vw, 7px);
+    }
+}
+
+/* 超小螢幕 (iPhone SE 等 <=375px) 最大化壓縮 */
+@media (max-width: 375px) {
+    .room-label.code {
+        font-size: clamp(3.5px, 1.3vw, 6px);
+        letter-spacing: -0.5px;
+    }
+
+    .room-label-box {
         padding: 0 1px !important;
+        border-radius: 1px;
+    }
+
+    .repair-count {
+        width: 10px;
+        height: 10px;
+        font-size: 0.45rem;
     }
 }
 
