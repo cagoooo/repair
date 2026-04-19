@@ -27,7 +27,7 @@ const Footer = () => {
 
                 <div className="footer-info">
                     <p className="copyright">
-                        校園智慧報修系統 &copy; {new Date().getFullYear()} v0.8.0
+                        校園智慧報修系統 &copy; {new Date().getFullYear()} v0.8.1
                     </p>
                 </div>
             </div>

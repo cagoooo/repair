@@ -64,6 +64,9 @@ npm run build
 
 ## 📝 版本紀錄
 
+- **v0.8.1** (2026/04/19):
+  - 📱 **手機端縮放自動重置 (Mobile Zoom Auto-Reset)**：使用者在手機上放大地圖找教室後點擊，開啟報修申請表單時會自動把頁面縮放重置為 100%，再也不會看到被放大扭曲的表單。透過動態改寫 `<meta name="viewport">` 觸發 iOS Safari 的 viewport 重算，0.35 秒後還原原設定讓使用者仍可自由縮放地圖。
+
 - **v0.8.0** (2026/04/19):
   - 📸 **照片上傳系統大翻新 (Photo Upload Overhaul)**：
     - **修正 iPhone 上傳失敗**：壓縮格式由 WebP 改為 JPEG（iOS Safari Canvas 對 WebP 編碼支援不全），並支援 HEIC/HEIF 副檔名偵測。檔案大小上限放寬至 20MB，壓縮後控制在 300KB。

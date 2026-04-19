@@ -560,8 +560,25 @@ function App() {
     }
   };
 
+  // 重置手機端 pinch-zoom 縮放（iOS Safari 會忽略 user-scalable=no）
+  // 透過動態改寫 viewport meta tag 強制觸發 viewport 重算
+  const resetMobileZoom = () => {
+    const viewport = document.querySelector('meta[name="viewport"]');
+    if (!viewport) return;
+    const original = viewport.getAttribute('content');
+    // 先改為不同內容以觸發 iOS 重算
+    viewport.setAttribute('content', 'width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no');
+    // 下一個 frame 還原原內容（保留使用者縮放能力）
+    setTimeout(() => {
+      viewport.setAttribute('content', original);
+    }, 350);
+  };
+
   // 處理教室點擊（報修）
   const handleRoomClick = (room) => {
+    resetMobileZoom();
+    // 同時捲動到頁面頂部，確保彈窗可見
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     setSelectedRoom(room);
     setShowRepairForm(true);
   };
