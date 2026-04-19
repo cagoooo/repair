@@ -140,6 +140,14 @@
     overflow: visible;
 }
 
+/* 標籤包裝：讓徽章能黏在標籤框的右上角（而非教室區塊） */
+.room-label-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .room-label-box {
     display: flex !important;
     flex-direction: row !important;
@@ -210,32 +218,36 @@
     padding: 3px 6px;
 }
 
-/* 修補報修數量顯示 */
+/* 修補報修數量顯示（黏在標籤框右上角，不會遮住教室代碼） */
 .repair-count {
     position: absolute;
-    top: -8px;
-    right: -8px;
+    top: 0;
+    right: 0;
+    transform: translate(45%, -45%);
     background: #ef4444;
     color: white;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 3px;
+    border-radius: 999px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     font-weight: 800;
-    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
-    border: 2px solid white;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+    border: 1.5px solid white;
     z-index: 100;
+    line-height: 1;
+    pointer-events: none;
 }
 
 .zoom-low .repair-count {
-    width: 14px;
-    height: 14px;
-    font-size: 0.6rem;
-    top: -4px;
-    right: -4px;
+    min-width: 10px;
+    height: 10px;
+    font-size: 0.5rem;
+    padding: 0 2px;
+    border-width: 1px;
 }
 
 /* 手機版優化 (媒體查詢) */
@@ -270,12 +282,12 @@
 
     /* 報修數量徽章縮小 */
     .repair-count {
-        width: 14px;
-        height: 14px;
-        font-size: 0.55rem;
-        top: -4px;
-        right: -4px;
+        min-width: 12px;
+        height: 12px;
+        font-size: 0.5rem;
+        padding: 0 2px;
         border-width: 1px;
+        transform: translate(40%, -40%);
     }
 
     /* 手機上點擊區域適度放大感官回饋 */
@@ -300,12 +312,12 @@
     }
 
     .repair-count {
-        width: 11px;
-        height: 11px;
-        font-size: 0.48rem;
-        top: -3px;
-        right: -3px;
-        border-width: 1px;
+        min-width: 10px;
+        height: 10px;
+        font-size: 0.45rem;
+        padding: 0 1.5px;
+        border-width: 0.5px;
+        transform: translate(40%, -40%);
     }
 
     /* 低縮放時的代碼更迷你，避免擠一團 */
@@ -338,9 +350,12 @@
     }
 
     .repair-count {
-        width: 10px;
-        height: 10px;
-        font-size: 0.45rem;
+        min-width: 9px;
+        height: 9px;
+        font-size: 0.42rem;
+        padding: 0 1px;
+        border-width: 0.5px;
+        transform: translate(35%, -35%);
     }
 }
 

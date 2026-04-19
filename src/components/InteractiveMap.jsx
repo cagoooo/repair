@@ -153,16 +153,17 @@ function InteractiveMap({ imageUrl, rooms, repairs, onRoomClick, onEditMap }) {
                                 title={`${room.name} (${room.code}) - ${count} 件待修`}
                             >
                                 <div className="room-label-container">
-                                    <div className="room-label-box">
-                                        <span className="room-label code">{room.code}</span>
+                                    <div className="room-label-wrapper">
+                                        <div className="room-label-box">
+                                            <span className="room-label code">{room.code}</span>
+                                        </div>
+                                        {count > 0 && (
+                                            <div className="repair-count">
+                                                {count}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-
-                                {count > 0 && (
-                                    <div className="repair-count">
-                                        {count}
-                                    </div>
-                                )}
                             </div>
                         );
                     })}
