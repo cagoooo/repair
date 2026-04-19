@@ -252,21 +252,66 @@
         border-radius: 12px;
     }
 
-    /* 在手機上自動根據容器寬度調整比例 */
+    /* 縮小標籤字體避免擁擠 */
     .room-label.code {
-        font-size: clamp(7px, 2.5vw, 12px);
+        font-size: clamp(6px, 1.8vw, 10px);
     }
-    
-    /* 增加標籤的對比度 */
+
+    /* 縮小標籤框減少重疊 */
     .room-label-box {
-        background: rgba(255, 255, 255, 0.95);
-        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        padding: 1px 3px !important;
+        border-width: 1px;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+        border-radius: 3px;
+    }
+
+    /* 報修數量徽章縮小 */
+    .repair-count {
+        width: 16px;
+        height: 16px;
+        font-size: 0.6rem;
+        top: -5px;
+        right: -5px;
+        border-width: 1.5px;
     }
 
     /* 手機上點擊區域適度放大感官回饋 */
     .room-interactive:active {
         transform: scale(0.95);
         filter: brightness(1.2);
+    }
+}
+
+/* iPhone 等小螢幕進一步壓縮 */
+@media (max-width: 480px) {
+    .room-label.code {
+        font-size: clamp(5px, 1.9vw, 8px);
+    }
+
+    .room-label-box {
+        padding: 0px 2px !important;
+        border-width: 1px;
+        border-radius: 2px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+    }
+
+    .repair-count {
+        width: 13px;
+        height: 13px;
+        font-size: 0.52rem;
+        top: -3px;
+        right: -3px;
+        border-width: 1px;
+    }
+
+    /* 低縮放時的代碼更迷你，避免擠一團 */
+    .zoom-low .room-label.code {
+        font-size: 5px;
+    }
+
+    .zoom-low .room-label-box {
+        padding: 0 1px !important;
     }
 }
 
