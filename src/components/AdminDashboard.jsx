@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import {
     PieChart, Pie, Cell,
@@ -24,7 +24,9 @@ function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair, adminR
     const [searchTerm, setSearchTerm] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('all');
     const [statusFilter, setStatusFilter] = useState('all');
+    const [priorityFilter, setPriorityFilter] = useState('all'); // 優先度篩選（緊急卡片用）
     const [previewImage, setPreviewImage] = useState(null);
+    const listSectionRef = useRef(null); // 列表區域的 ref，用於自動捲動
 
     // 批次刪除狀態
     const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -116,10 +118,33 @@ function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair, adminR
 
             const matchCategory = categoryFilter === 'all' || repair.category === categoryFilter;
             const matchStatus = statusFilter === 'all' || repair.status === statusFilter;
+            const matchPriority = priorityFilter === 'all'
+                || (priorityFilter === 'urgent' && repair.priority === 'urgent' && repair.status !== 'completed');
 
-            return matchSearch && matchCategory && matchStatus;
+            return matchSearch && matchCategory && matchStatus && matchPriority;
         }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    }, [repairs, searchTerm, categoryFilter, statusFilter]);
+    }, [repairs, searchTerm, categoryFilter, statusFilter, priorityFilter]);
+
+    // 點擊統計卡片：套用篩選並捲動到列表
+    const handleStatCardClick = (filters) => {
+        setStatusFilter(filters.status ?? 'all');
+        setPriorityFilter(filters.priority ?? 'all');
+        setSearchTerm('');
+        // 延遲捲動，確保篩選已套用
+        setTimeout(() => {
+            listSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+    };
+
+    // 清除所有篩選
+    const clearAllFilters = () => {
+        setStatusFilter('all');
+        setPriorityFilter('all');
+        setSearchTerm('');
+        setCategoryFilter('all');
+    };
+
+    const hasActiveFilter = statusFilter !== 'all' || priorityFilter !== 'all' || searchTerm || categoryFilter !== 'all';
 
     // 取得類別名稱
     const getCategoryName = (catId) => {
@@ -249,43 +274,63 @@ function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair, adminR
                 </div>
             )}
 
-            {/* 統計卡片區域 */}
+            {/* 統計卡片區域（可點擊篩選） */}
             <div className="stats-container">
-                <div className="stat-card pending">
+                <button
+                    className={`stat-card pending clickable ${statusFilter === 'pending' ? 'active' : ''}`}
+                    onClick={() => handleStatCardClick({ status: 'pending' })}
+                    title="點擊篩選：只看待處理"
+                >
                     <div className="stat-icon">🕒</div>
                     <div className="stat-info">
                         <span className="stat-label">待處理</span>
                         <span className="stat-value">{stats.pending}</span>
                     </div>
-                </div>
-                <div className="stat-card in-progress">
+                </button>
+                <button
+                    className={`stat-card in-progress clickable ${statusFilter === 'in_progress' ? 'active' : ''}`}
+                    onClick={() => handleStatCardClick({ status: 'in_progress' })}
+                    title="點擊篩選：只看處理中"
+                >
                     <div className="stat-icon">🔧</div>
                     <div className="stat-info">
                         <span className="stat-label">處理中</span>
                         <span className="stat-value">{stats.inProgress}</span>
                     </div>
-                </div>
-                <div className="stat-card completed">
+                </button>
+                <button
+                    className={`stat-card completed clickable ${statusFilter === 'completed' ? 'active' : ''}`}
+                    onClick={() => handleStatCardClick({ status: 'completed' })}
+                    title="點擊篩選：只看已完成"
+                >
                     <div className="stat-icon">✅</div>
                     <div className="stat-info">
                         <span className="stat-label">已完成</span>
                         <span className="stat-value">{stats.completed}</span>
                     </div>
-                </div>
-                <div className="stat-card urgent">
+                </button>
+                <button
+                    className={`stat-card urgent clickable ${priorityFilter === 'urgent' ? 'active' : ''}`}
+                    onClick={() => handleStatCardClick({ priority: 'urgent' })}
+                    title="點擊篩選：只看緊急案件（未完成）"
+                >
                     <div className="stat-icon">🔥</div>
                     <div className="stat-info">
                         <span className="stat-label">緊急案件</span>
                         <span className="stat-value">{stats.urgent}</span>
                     </div>
-                </div>
-                <div className="stat-card mttr">
+                </button>
+                <button
+                    className={`stat-card mttr clickable ${statusFilter === 'completed' ? 'active' : ''}`}
+                    onClick={() => handleStatCardClick({ status: 'completed' })}
+                    title="點擊篩選：檢視所有已完成紀錄"
+                >
                     <div className="stat-icon">⚡</div>
                     <div className="stat-info">
                         <span className="stat-label">平均完修</span>
                         <span className="stat-value">{stats.mttr}<small style={{ fontSize: '0.5em' }}>小時</small></span>
                     </div>
-                </div>
+                </button>
             </div>
 
             {/* 圖表區域 (New) */}
@@ -377,6 +422,32 @@ function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair, adminR
                     </div>
                 </div>
             </div>
+
+            {/* 列表區錨點 */}
+            <div ref={listSectionRef} className="admin-list-anchor"></div>
+
+            {/* 快速篩選狀態列 */}
+            {hasActiveFilter && (
+                <div className="active-filter-bar animate-fadeIn">
+                    <span className="filter-label">🔎 目前篩選：</span>
+                    {statusFilter !== 'all' && (
+                        <span className="filter-chip">狀態：{REPAIR_STATUS[statusFilter]?.name || statusFilter}</span>
+                    )}
+                    {priorityFilter === 'urgent' && (
+                        <span className="filter-chip urgent">🔥 僅緊急案件</span>
+                    )}
+                    {categoryFilter !== 'all' && (
+                        <span className="filter-chip">類別：{REPAIR_CATEGORIES[categoryFilter]?.name}</span>
+                    )}
+                    {searchTerm && (
+                        <span className="filter-chip">搜尋：{searchTerm}</span>
+                    )}
+                    <span className="filter-result">共 {filteredRepairs.length} 筆</span>
+                    <button className="filter-clear-btn" onClick={clearAllFilters}>
+                        ✕ 清除篩選
+                    </button>
+                </div>
+            )}
 
             {/* 篩選工具 */}
             <div className="filter-toolbar">
