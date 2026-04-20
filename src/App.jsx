@@ -6,6 +6,7 @@ import MapUploader from './components/MapUploader';
 import RepairForm from './components/RepairForm';
 import RepairList from './components/RepairList';
 import AdminDashboard from './components/AdminDashboard';
+import AdminRoleSelector from './components/AdminRoleSelector';
 import Skeleton from './components/Skeleton';
 import ScrollToTop from './components/ScrollToTop'; // [NEW] Import ScrollToTop
 import { useToast } from './components/Toast';
@@ -54,6 +55,9 @@ function App() {
   const [isMapLoading, setIsMapLoading] = useState(true); // 地圖資料載入中
   const [showEditor, setShowEditor] = useState(false);
   const [showRepairForm, setShowRepairForm] = useState(false);
+  // 管理員檢視角色: 'IT' | 'GENERAL' | 'ALL' | null(未選)
+  const [adminRole, setAdminRole] = useState(() => localStorage.getItem('admin_role') || null);
+  const [showRoleSelector, setShowRoleSelector] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [showSetup, setShowSetup] = useState(false);
 
@@ -507,6 +511,26 @@ function App() {
     }));
   }, [rawRepairs, myRepairIds]);
 
+  // 依管理員角色過濾 repairs
+  const filteredAdminRepairs = useMemo(() => {
+    if (!adminRole || adminRole === 'ALL') return repairs;
+    return repairs.filter(r => r.category === adminRole);
+  }, [repairs, adminRole]);
+
+  // 儲存角色選擇
+  const handleSelectAdminRole = (role) => {
+    setAdminRole(role);
+    localStorage.setItem('admin_role', role);
+    setShowRoleSelector(false);
+  };
+
+  // 管理員進入後台且尚未選擇角色時，自動跳出選擇器
+  useEffect(() => {
+    if (activeTab === 'admin' && isAdmin && !adminRole) {
+      setShowRoleSelector(true);
+    }
+  }, [activeTab, isAdmin, adminRole]);
+
   // 🔔 動態頁面標題：顯示待處理報修數
   useEffect(() => {
     const pendingCount = repairs.filter(r => r.status === 'pending').length;
@@ -893,12 +917,25 @@ function App() {
         {!showSetup && activeTab === 'admin' && isAdmin && (
           <div className="admin-page">
             <AdminDashboard
-              repairs={repairs}
+              repairs={filteredAdminRepairs}
               rooms={rooms}
               onUpdateStatus={handleUpdateStatus}
               onDeleteRepair={handleDeleteRepair}
+              adminRole={adminRole}
+              onSwitchRole={() => setShowRoleSelector(true)}
             />
           </div>
+        )}
+
+        {/* 管理員角色選擇器 */}
+        {showRoleSelector && isAdmin && (
+          <AdminRoleSelector
+            currentRole={adminRole}
+            repairs={repairs}
+            onSelect={handleSelectAdminRole}
+            onClose={() => setShowRoleSelector(false)}
+            canClose={!!adminRole}
+          />
         )}
 
         {/* 設定頁面 */}

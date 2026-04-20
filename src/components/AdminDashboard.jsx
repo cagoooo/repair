@@ -13,7 +13,14 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
  * 管理員後台儀表板
  * 提供報修統計、列表管理、狀態更新等功能
  */
-function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair }) {
+function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair, adminRole, onSwitchRole }) {
+    // 角色顯示資訊
+    const roleDisplay = {
+        IT: { icon: '🖥️', name: '資訊組長' },
+        GENERAL: { icon: '🔧', name: '事務組長' },
+        ALL: { icon: '📊', name: '全部檢視' },
+    };
+    const currentRoleInfo = roleDisplay[adminRole] || roleDisplay.ALL;
     const [searchTerm, setSearchTerm] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('all');
     const [statusFilter, setStatusFilter] = useState('all');
@@ -168,7 +175,19 @@ function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair }) {
             <header className="admin-header">
                 <div className="admin-title">
                     <h2>📊 管理員儀表板</h2>
-                    <span className="badge badge-primary">Admin</span>
+                    {onSwitchRole ? (
+                        <button
+                            className="admin-role-badge"
+                            onClick={onSwitchRole}
+                            title="點擊切換檢視角色"
+                        >
+                            <span>{currentRoleInfo.icon}</span>
+                            <span>{currentRoleInfo.name}</span>
+                            <span className="switch-icon">🔄</span>
+                        </button>
+                    ) : (
+                        <span className="badge badge-primary">Admin</span>
+                    )}
                 </div>
                 <div className="admin-actions">
                     {/* 批次刪除按鈕群組 */}
