@@ -22,10 +22,12 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
     const [filter, setFilter] = useState({
         category: 'all',
         status: 'all',
+        priority: 'all',
         search: '',
         dateFrom: '',
         dateTo: ''
     });
+    const listSectionRef = useRef(null); // 列表區域 ref，用於自動捲動
     const [sortBy, setSortBy] = useState('createdAt');
     const [sortOrder, setSortOrder] = useState('desc');
 
@@ -45,6 +47,11 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
             // [MODIFY] 預設排除 "已取消" 的項目，除非使用者明確選擇該狀態
             // 讓使用者感覺 "撤銷 = 刪除"
             result = result.filter(r => r.status !== 'cancelled');
+        }
+
+        // 優先度篩選（點擊緊急案件卡片用）
+        if (filter.priority === 'urgent') {
+            result = result.filter(r => r.priority === 'urgent' && r.status !== 'completed');
         }
 
         // 搜尋
@@ -98,6 +105,32 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
 
         return { pending, inProgress, completed, urgent, total: repairs.length };
     }, [repairs]);
+
+    // 點擊統計卡片：套用篩選並捲動到列表
+    const handleStatCardClick = (newFilters) => {
+        setFilter(prev => ({
+            ...prev,
+            status: newFilters.status ?? 'all',
+            priority: newFilters.priority ?? 'all',
+            search: '',
+        }));
+        setTimeout(() => {
+            listSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+    };
+
+    // 清除所有快速篩選
+    const clearQuickFilters = () => {
+        setFilter(prev => ({
+            ...prev,
+            status: 'all',
+            priority: 'all',
+            search: '',
+            category: 'all',
+        }));
+    };
+
+    const hasActiveFilter = filter.status !== 'all' || filter.priority !== 'all' || filter.search || filter.category !== 'all';
 
     // 格式化日期
     const formatDate = (dateStr) => {
@@ -405,37 +438,79 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
                 </div>
             )}
 
-            {/* 統計卡片 */}
+            {/* 統計卡片（可點擊篩選） */}
             <div className="stats-container">
-                <div className="stat-card pending">
+                <button
+                    className={`stat-card pending clickable ${filter.status === 'pending' ? 'active' : ''}`}
+                    onClick={() => handleStatCardClick({ status: 'pending' })}
+                    title="點擊篩選：只看待處理"
+                >
                     <div className="stat-icon-wrapper">⏳</div>
                     <div className="stat-info">
                         <span className="stat-value">{stats.pending}</span>
                         <span className="stat-label">待處理</span>
                     </div>
-                </div>
-                <div className="stat-card in-progress">
+                </button>
+                <button
+                    className={`stat-card in-progress clickable ${filter.status === 'in_progress' ? 'active' : ''}`}
+                    onClick={() => handleStatCardClick({ status: 'in_progress' })}
+                    title="點擊篩選：只看處理中"
+                >
                     <div className="stat-icon-wrapper">🔄</div>
                     <div className="stat-info">
                         <span className="stat-value">{stats.inProgress}</span>
                         <span className="stat-label">處理中</span>
                     </div>
-                </div>
-                <div className="stat-card completed">
+                </button>
+                <button
+                    className={`stat-card completed clickable ${filter.status === 'completed' ? 'active' : ''}`}
+                    onClick={() => handleStatCardClick({ status: 'completed' })}
+                    title="點擊篩選：只看已完成"
+                >
                     <div className="stat-icon-wrapper">✅</div>
                     <div className="stat-info">
                         <span className="stat-value">{stats.completed}</span>
                         <span className="stat-label">已完成</span>
                     </div>
-                </div>
-                <div className="stat-card urgent">
+                </button>
+                <button
+                    className={`stat-card urgent clickable ${filter.priority === 'urgent' ? 'active' : ''}`}
+                    onClick={() => handleStatCardClick({ priority: 'urgent' })}
+                    title="點擊篩選：只看緊急案件（未完成）"
+                >
                     <div className="stat-icon-wrapper">🔥</div>
                     <div className="stat-info">
                         <span className="stat-value">{stats.urgent}</span>
                         <span className="stat-label">緊急案件</span>
                     </div>
-                </div>
+                </button>
             </div>
+
+            {/* 列表區錨點 */}
+            <div ref={listSectionRef} className="list-anchor"></div>
+
+            {/* 啟用的篩選狀態列 */}
+            {hasActiveFilter && (
+                <div className="active-filter-bar animate-fadeIn">
+                    <span className="filter-label">🔎 目前篩選：</span>
+                    {filter.status !== 'all' && (
+                        <span className="filter-chip">狀態：{REPAIR_STATUS[filter.status]?.name || filter.status}</span>
+                    )}
+                    {filter.priority === 'urgent' && (
+                        <span className="filter-chip urgent">🔥 僅緊急案件</span>
+                    )}
+                    {filter.category !== 'all' && (
+                        <span className="filter-chip">類別：{REPAIR_CATEGORIES[filter.category]?.name}</span>
+                    )}
+                    {filter.search && (
+                        <span className="filter-chip">搜尋：{filter.search}</span>
+                    )}
+                    <span className="filter-result">共 {filteredRepairs.length} 筆</span>
+                    <button className="filter-clear-btn" onClick={clearQuickFilters}>
+                        ✕ 清除篩選
+                    </button>
+                </div>
+            )}
 
             {/* 篩選工具列 */}
             <div className="filter-toolbar glass-card">

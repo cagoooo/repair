@@ -211,6 +211,159 @@
     border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
+/* 可點擊統計卡片 */
+.stat-card.clickable {
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    position: relative;
+    overflow: hidden;
+    color: inherit;
+}
+
+.stat-card.clickable::after {
+    content: '👆';
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    font-size: 0.9rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+}
+
+.stat-card.clickable:hover::after {
+    opacity: 0.5;
+}
+
+.stat-card.clickable:hover {
+    transform: translateY(-4px) scale(1.015);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.3);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.stat-card.clickable:active {
+    transform: translateY(-1px);
+}
+
+.stat-card.clickable.active {
+    border-width: 2px;
+    border-color: rgba(139, 92, 246, 0.7);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35), 0 0 0 2px rgba(139, 92, 246, 0.4);
+    transform: translateY(-2px);
+}
+
+.stat-card.clickable.active::before {
+    content: '✓ 篩選中';
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #8b5cf6;
+    color: white;
+    letter-spacing: 0.3px;
+    z-index: 2;
+}
+
+.stat-card.clickable.active::after {
+    display: none;
+}
+
+/* 列表區錨點 */
+.list-anchor {
+    scroll-margin-top: 20px;
+    height: 0;
+}
+
+/* 啟用的篩選狀態列 */
+.active-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 18px;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(59, 130, 246, 0.12));
+    border: 1px solid rgba(139, 92, 246, 0.35);
+    border-radius: 12px;
+    font-size: 0.88rem;
+    color: #e2e8f0;
+}
+
+.active-filter-bar .filter-label {
+    font-weight: 600;
+    color: #c4b5fd;
+}
+
+.active-filter-bar .filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    font-size: 0.82rem;
+    font-weight: 500;
+}
+
+.active-filter-bar .filter-chip.urgent {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #fecaca;
+}
+
+.active-filter-bar .filter-result {
+    margin-left: auto;
+    font-weight: 700;
+    color: #a78bfa;
+}
+
+.active-filter-bar .filter-clear-btn {
+    padding: 5px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    background: rgba(239, 68, 68, 0.1);
+    color: #fca5a5;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.active-filter-bar .filter-clear-btn:hover {
+    background: rgba(239, 68, 68, 0.25);
+    color: #fff;
+}
+
+@media (max-width: 600px) {
+    .active-filter-bar {
+        padding: 10px 14px;
+        font-size: 0.8rem;
+    }
+
+    .active-filter-bar .filter-result {
+        margin-left: 0;
+        width: 100%;
+        text-align: right;
+    }
+
+    .active-filter-bar .filter-clear-btn {
+        width: 100%;
+        margin-top: 6px;
+    }
+
+    .stat-card.clickable::after,
+    .stat-card.clickable.active::before {
+        font-size: 0.6rem;
+    }
+}
+
 /* 篩選工具列 */
 .filter-toolbar {
     background: rgba(15, 23, 42, 0.6);
