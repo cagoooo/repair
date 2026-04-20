@@ -5,14 +5,13 @@ import './AdminRoleSelector.css';
  * 進入管理後台時跳出，讓資訊組長/事務組長快速切換檢視視角
  */
 const AdminRoleSelector = ({ currentRole, repairs, onSelect, onClose, canClose = false }) => {
-    // 計算各角色的待處理數量
-    const itPending = repairs.filter(r => r.category === 'IT' && r.status === 'pending').length;
-    const itAll = repairs.filter(r => r.category === 'IT').length;
-
-    const generalPending = repairs.filter(r => r.category === 'GENERAL' && r.status === 'pending').length;
-    const generalAll = repairs.filter(r => r.category === 'GENERAL').length;
-
-    const allPending = repairs.filter(r => r.status === 'pending').length;
+    // 計算各角色的統計數字
+    const countBy = (category, status) => repairs.filter(r =>
+        (category === 'ALL' || r.category === category) && r.status === status
+    ).length;
+    const countTotal = (category) => repairs.filter(r =>
+        category === 'ALL' || r.category === category
+    ).length;
 
     const roles = [
         {
@@ -20,8 +19,9 @@ const AdminRoleSelector = ({ currentRole, repairs, onSelect, onClose, canClose =
             icon: '🖥️',
             name: '資訊組長',
             description: '電腦、螢幕、網路、投影機等資訊設備',
-            pending: itPending,
-            total: itAll,
+            pending: countBy('IT', 'pending'),
+            inProgress: countBy('IT', 'in_progress'),
+            total: countTotal('IT'),
             color: '#8b5cf6',
         },
         {
@@ -29,8 +29,9 @@ const AdminRoleSelector = ({ currentRole, repairs, onSelect, onClose, canClose =
             icon: '🔧',
             name: '事務組長',
             description: '水電、門窗、桌椅、黑板等一般設備',
-            pending: generalPending,
-            total: generalAll,
+            pending: countBy('GENERAL', 'pending'),
+            inProgress: countBy('GENERAL', 'in_progress'),
+            total: countTotal('GENERAL'),
             color: '#f97316',
         },
         {
@@ -38,8 +39,9 @@ const AdminRoleSelector = ({ currentRole, repairs, onSelect, onClose, canClose =
             icon: '📊',
             name: '全部檢視',
             description: '不分類，顯示所有報修單與統計',
-            pending: allPending,
-            total: repairs.length,
+            pending: countBy('ALL', 'pending'),
+            inProgress: countBy('ALL', 'in_progress'),
+            total: countTotal('ALL'),
             color: '#3b82f6',
         },
     ];
@@ -71,6 +73,11 @@ const AdminRoleSelector = ({ currentRole, repairs, onSelect, onClose, canClose =
                                     {role.pending > 0 && (
                                         <span className="role-badge pending">
                                             ⏳ {role.pending} 待處理
+                                        </span>
+                                    )}
+                                    {role.inProgress > 0 && (
+                                        <span className="role-badge in-progress">
+                                            🔄 {role.inProgress} 處理中
                                         </span>
                                     )}
                                     <span className="role-badge total">
