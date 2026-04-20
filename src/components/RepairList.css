@@ -217,25 +217,7 @@
     font-family: inherit;
     text-align: left;
     width: 100%;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    position: relative;
-    overflow: hidden;
     color: inherit;
-}
-
-.stat-card.clickable::after {
-    content: '👆';
-    position: absolute;
-    top: 8px;
-    right: 10px;
-    font-size: 0.9rem;
-    opacity: 0;
-    transition: opacity 0.2s;
-    pointer-events: none;
-}
-
-.stat-card.clickable:hover::after {
-    opacity: 0.5;
 }
 
 .stat-card.clickable:hover {
@@ -248,30 +230,34 @@
     transform: translateY(-1px);
 }
 
+/* 啟用篩選中的卡片樣式（不使用 ::before 以免與既有覆蓋層衝突） */
 .stat-card.clickable.active {
-    border-width: 2px;
-    border-color: rgba(139, 92, 246, 0.7);
-    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35), 0 0 0 2px rgba(139, 92, 246, 0.4);
-    transform: translateY(-2px);
+    border-color: rgba(139, 92, 246, 0.6);
+    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.25), 0 0 0 2px rgba(139, 92, 246, 0.5);
+    background: linear-gradient(145deg, rgba(139, 92, 246, 0.12), rgba(30, 41, 59, 0.7));
 }
 
-.stat-card.clickable.active::before {
-    content: '✓ 篩選中';
+/* 「篩選中」徽章（真實 DOM 元素，不與 ::before 衝突） */
+.stat-active-badge {
     position: absolute;
-    top: 8px;
-    right: 10px;
+    top: 10px;
+    right: 12px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #8b5cf6, #6366f1);
+    color: white;
     font-size: 0.68rem;
     font-weight: 700;
-    padding: 3px 8px;
-    border-radius: 999px;
-    background: #8b5cf6;
-    color: white;
     letter-spacing: 0.3px;
-    z-index: 2;
+    box-shadow: 0 2px 6px rgba(139, 92, 246, 0.5);
+    z-index: 3;
+    pointer-events: none;
+    animation: badgePulse 2s ease-in-out infinite;
 }
 
-.stat-card.clickable.active::after {
-    display: none;
+@keyframes badgePulse {
+    0%, 100% { box-shadow: 0 2px 6px rgba(139, 92, 246, 0.5); }
+    50% { box-shadow: 0 2px 12px rgba(139, 92, 246, 0.9); }
 }
 
 /* 列表區錨點 */

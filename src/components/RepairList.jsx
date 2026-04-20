@@ -440,50 +440,28 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
 
             {/* 統計卡片（可點擊篩選） */}
             <div className="stats-container">
-                <button
-                    className={`stat-card pending clickable ${filter.status === 'pending' ? 'active' : ''}`}
-                    onClick={() => handleStatCardClick({ status: 'pending' })}
-                    title="點擊篩選：只看待處理"
-                >
-                    <div className="stat-icon-wrapper">⏳</div>
-                    <div className="stat-info">
-                        <span className="stat-value">{stats.pending}</span>
-                        <span className="stat-label">待處理</span>
-                    </div>
-                </button>
-                <button
-                    className={`stat-card in-progress clickable ${filter.status === 'in_progress' ? 'active' : ''}`}
-                    onClick={() => handleStatCardClick({ status: 'in_progress' })}
-                    title="點擊篩選：只看處理中"
-                >
-                    <div className="stat-icon-wrapper">🔄</div>
-                    <div className="stat-info">
-                        <span className="stat-value">{stats.inProgress}</span>
-                        <span className="stat-label">處理中</span>
-                    </div>
-                </button>
-                <button
-                    className={`stat-card completed clickable ${filter.status === 'completed' ? 'active' : ''}`}
-                    onClick={() => handleStatCardClick({ status: 'completed' })}
-                    title="點擊篩選：只看已完成"
-                >
-                    <div className="stat-icon-wrapper">✅</div>
-                    <div className="stat-info">
-                        <span className="stat-value">{stats.completed}</span>
-                        <span className="stat-label">已完成</span>
-                    </div>
-                </button>
-                <button
-                    className={`stat-card urgent clickable ${filter.priority === 'urgent' ? 'active' : ''}`}
-                    onClick={() => handleStatCardClick({ priority: 'urgent' })}
-                    title="點擊篩選：只看緊急案件（未完成）"
-                >
-                    <div className="stat-icon-wrapper">🔥</div>
-                    <div className="stat-info">
-                        <span className="stat-value">{stats.urgent}</span>
-                        <span className="stat-label">緊急案件</span>
-                    </div>
-                </button>
+                {[
+                    { id: 'pending', icon: '⏳', value: stats.pending, label: '待處理', isActive: filter.status === 'pending', filter: { status: 'pending' } },
+                    { id: 'in-progress', icon: '🔄', value: stats.inProgress, label: '處理中', isActive: filter.status === 'in_progress', filter: { status: 'in_progress' } },
+                    { id: 'completed', icon: '✅', value: stats.completed, label: '已完成', isActive: filter.status === 'completed', filter: { status: 'completed' } },
+                    { id: 'urgent', icon: '🔥', value: stats.urgent, label: '緊急案件', isActive: filter.priority === 'urgent', filter: { priority: 'urgent' } },
+                ].map(card => (
+                    <button
+                        key={card.id}
+                        className={`stat-card ${card.id} clickable ${card.isActive ? 'active' : ''}`}
+                        onClick={() => handleStatCardClick(card.filter)}
+                        title={`點擊篩選：只看${card.label}`}
+                    >
+                        <div className="stat-icon-wrapper">{card.icon}</div>
+                        <div className="stat-info">
+                            <span className="stat-value">{card.value}</span>
+                            <span className="stat-label">{card.label}</span>
+                        </div>
+                        {card.isActive && (
+                            <span className="stat-active-badge">✓ 篩選中</span>
+                        )}
+                    </button>
+                ))}
             </div>
 
             {/* 列表區錨點 */}

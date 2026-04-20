@@ -276,61 +276,29 @@ function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair, adminR
 
             {/* 統計卡片區域（可點擊篩選） */}
             <div className="stats-container">
-                <button
-                    className={`stat-card pending clickable ${statusFilter === 'pending' ? 'active' : ''}`}
-                    onClick={() => handleStatCardClick({ status: 'pending' })}
-                    title="點擊篩選：只看待處理"
-                >
-                    <div className="stat-icon">🕒</div>
-                    <div className="stat-info">
-                        <span className="stat-label">待處理</span>
-                        <span className="stat-value">{stats.pending}</span>
-                    </div>
-                </button>
-                <button
-                    className={`stat-card in-progress clickable ${statusFilter === 'in_progress' ? 'active' : ''}`}
-                    onClick={() => handleStatCardClick({ status: 'in_progress' })}
-                    title="點擊篩選：只看處理中"
-                >
-                    <div className="stat-icon">🔧</div>
-                    <div className="stat-info">
-                        <span className="stat-label">處理中</span>
-                        <span className="stat-value">{stats.inProgress}</span>
-                    </div>
-                </button>
-                <button
-                    className={`stat-card completed clickable ${statusFilter === 'completed' ? 'active' : ''}`}
-                    onClick={() => handleStatCardClick({ status: 'completed' })}
-                    title="點擊篩選：只看已完成"
-                >
-                    <div className="stat-icon">✅</div>
-                    <div className="stat-info">
-                        <span className="stat-label">已完成</span>
-                        <span className="stat-value">{stats.completed}</span>
-                    </div>
-                </button>
-                <button
-                    className={`stat-card urgent clickable ${priorityFilter === 'urgent' ? 'active' : ''}`}
-                    onClick={() => handleStatCardClick({ priority: 'urgent' })}
-                    title="點擊篩選：只看緊急案件（未完成）"
-                >
-                    <div className="stat-icon">🔥</div>
-                    <div className="stat-info">
-                        <span className="stat-label">緊急案件</span>
-                        <span className="stat-value">{stats.urgent}</span>
-                    </div>
-                </button>
-                <button
-                    className={`stat-card mttr clickable ${statusFilter === 'completed' ? 'active' : ''}`}
-                    onClick={() => handleStatCardClick({ status: 'completed' })}
-                    title="點擊篩選：檢視所有已完成紀錄"
-                >
-                    <div className="stat-icon">⚡</div>
-                    <div className="stat-info">
-                        <span className="stat-label">平均完修</span>
-                        <span className="stat-value">{stats.mttr}<small style={{ fontSize: '0.5em' }}>小時</small></span>
-                    </div>
-                </button>
+                {[
+                    { id: 'pending', icon: '🕒', value: stats.pending, label: '待處理', isActive: statusFilter === 'pending', filter: { status: 'pending' } },
+                    { id: 'in-progress', icon: '🔧', value: stats.inProgress, label: '處理中', isActive: statusFilter === 'in_progress', filter: { status: 'in_progress' } },
+                    { id: 'completed', icon: '✅', value: stats.completed, label: '已完成', isActive: statusFilter === 'completed' && priorityFilter !== 'urgent', filter: { status: 'completed' } },
+                    { id: 'urgent', icon: '🔥', value: stats.urgent, label: '緊急案件', isActive: priorityFilter === 'urgent', filter: { priority: 'urgent' } },
+                    { id: 'mttr', icon: '⚡', value: <>{stats.mttr}<small style={{ fontSize: '0.5em' }}>小時</small></>, label: '平均完修', isActive: false, filter: { status: 'completed' } },
+                ].map(card => (
+                    <button
+                        key={card.id}
+                        className={`stat-card ${card.id} clickable ${card.isActive ? 'active' : ''}`}
+                        onClick={() => handleStatCardClick(card.filter)}
+                        title={`點擊篩選：${card.label}`}
+                    >
+                        <div className="stat-icon">{card.icon}</div>
+                        <div className="stat-info">
+                            <span className="stat-label">{card.label}</span>
+                            <span className="stat-value">{card.value}</span>
+                        </div>
+                        {card.isActive && (
+                            <span className="stat-active-badge">✓ 篩選中</span>
+                        )}
+                    </button>
+                ))}
             </div>
 
             {/* 圖表區域 (New) */}

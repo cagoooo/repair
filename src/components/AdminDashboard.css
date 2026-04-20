@@ -253,21 +253,7 @@
     text-align: left;
     width: 100%;
     position: relative;
-    overflow: hidden;
-}
-
-.stat-card.clickable::after {
-    content: '👆';
-    position: absolute;
-    top: 8px;
-    right: 10px;
-    font-size: 0.85rem;
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-
-.stat-card.clickable:hover::after {
-    opacity: 0.6;
+    color: inherit;
 }
 
 .stat-card.clickable:hover {
@@ -281,27 +267,31 @@
 }
 
 .stat-card.clickable.active {
-    border-width: 2px;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(139, 92, 246, 0.5);
-    transform: translateY(-2px);
+    border-color: rgba(139, 92, 246, 0.6);
+    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.25), 0 0 0 2px rgba(139, 92, 246, 0.5);
 }
 
-.stat-card.clickable.active::before {
-    content: '✓ 篩選中';
+/* 「篩選中」徽章（真實 DOM 元素） */
+.stat-active-badge {
     position: absolute;
-    top: 8px;
-    right: 10px;
-    font-size: 0.7rem;
-    font-weight: 700;
-    padding: 3px 8px;
+    top: 10px;
+    right: 12px;
+    padding: 3px 9px;
     border-radius: 999px;
-    background: #8b5cf6;
+    background: linear-gradient(135deg, #8b5cf6, #6366f1);
     color: white;
+    font-size: 0.68rem;
+    font-weight: 700;
     letter-spacing: 0.3px;
+    box-shadow: 0 2px 6px rgba(139, 92, 246, 0.5);
+    z-index: 3;
+    pointer-events: none;
+    animation: badgePulseAdmin 2s ease-in-out infinite;
 }
 
-.stat-card.clickable.active::after {
-    display: none;
+@keyframes badgePulseAdmin {
+    0%, 100% { box-shadow: 0 2px 6px rgba(139, 92, 246, 0.5); }
+    50% { box-shadow: 0 2px 12px rgba(139, 92, 246, 0.9); }
 }
 
 /* 啟用的篩選狀態列 */
