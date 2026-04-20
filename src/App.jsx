@@ -524,9 +524,9 @@ function App() {
     setShowRoleSelector(false);
   };
 
-  // 管理員進入後台且尚未選擇角色時，自動跳出選擇器
+  // 管理員進入後台或列表且尚未選擇角色時，自動跳出選擇器
   useEffect(() => {
-    if (activeTab === 'admin' && isAdmin && !adminRole) {
+    if ((activeTab === 'admin' || activeTab === 'list') && isAdmin && !adminRole) {
       setShowRoleSelector(true);
     }
   }, [activeTab, isAdmin, adminRole]);
@@ -897,12 +897,14 @@ function App() {
               </div>
             ) : (
               <RepairList
-                repairs={repairs}
+                repairs={isAdmin ? filteredAdminRepairs : repairs}
                 isAdmin={isAdmin}
                 onUpdateStatus={handleUpdateStatus}
                 onAddComment={handleAddComment}
                 onDeleteRepair={handleDeleteRepair}
                 highlightRepairId={highlightRepairId}
+                adminRole={isAdmin ? adminRole : null}
+                onSwitchRole={isAdmin ? () => setShowRoleSelector(true) : null}
                 onViewRoom={(roomId) => {
                   const room = rooms.find(r => r.id === roomId);
                   if (room) setSelectedRoom(room);

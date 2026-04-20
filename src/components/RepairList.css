@@ -24,6 +24,87 @@
     }
 }
 
+/* 管理員角色切換列 */
+.list-role-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 18px;
+    margin-bottom: 1.25rem;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(59, 130, 246, 0.12));
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 14px;
+    backdrop-filter: blur(8px);
+}
+
+.list-role-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.list-role-icon {
+    font-size: 1.75rem;
+    line-height: 1;
+}
+
+.list-role-label {
+    display: block;
+    font-size: 0.72rem;
+    color: #94a3b8;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+}
+
+.list-role-name {
+    display: block;
+    font-size: 1.02rem;
+    font-weight: 700;
+    color: #f1f5f9;
+}
+
+.list-role-switch {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.08);
+    color: #f1f5f9;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.list-role-switch:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+@media (max-width: 600px) {
+    .list-role-bar {
+        padding: 10px 14px;
+        border-radius: 12px;
+    }
+
+    .list-role-icon {
+        font-size: 1.4rem;
+    }
+
+    .list-role-name {
+        font-size: 0.92rem;
+    }
+
+    .list-role-switch {
+        padding: 6px 12px;
+        font-size: 0.78rem;
+    }
+}
+
 /* 統計卡片區域 */
 .stats-container {
     display: grid;

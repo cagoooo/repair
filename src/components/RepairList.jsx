@@ -10,7 +10,14 @@ import './RepairList.css';
  * 報修列表元件
  * 顯示所有報修單，支援篩選與狀態更新
  */
-function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment, onDeleteRepair, highlightRepairId }) {
+function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment, onDeleteRepair, highlightRepairId, adminRole, onSwitchRole }) {
+    // 角色顯示資訊（管理員用）
+    const roleDisplay = {
+        IT: { icon: '🖥️', name: '資訊組長' },
+        GENERAL: { icon: '🔧', name: '事務組長' },
+        ALL: { icon: '📊', name: '全部檢視' },
+    };
+    const currentRoleInfo = adminRole ? (roleDisplay[adminRole] || roleDisplay.ALL) : null;
     const toast = useToast();
     const [filter, setFilter] = useState({
         category: 'all',
@@ -379,6 +386,22 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
                         <img src={previewImage} alt="Repair Detail" />
                         <button className="close-modal-btn" onClick={() => setPreviewImage(null)}>✕</button>
                     </div>
+                </div>
+            )}
+
+            {/* 管理員角色切換列 */}
+            {isAdmin && currentRoleInfo && onSwitchRole && (
+                <div className="list-role-bar">
+                    <div className="list-role-info">
+                        <span className="list-role-icon">{currentRoleInfo.icon}</span>
+                        <div>
+                            <span className="list-role-label">目前檢視</span>
+                            <span className="list-role-name">{currentRoleInfo.name}</span>
+                        </div>
+                    </div>
+                    <button className="list-role-switch" onClick={onSwitchRole}>
+                        🔄 切換角色
+                    </button>
                 </div>
             )}
 
