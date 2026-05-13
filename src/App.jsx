@@ -817,11 +817,23 @@ function App() {
               onClick={() => setActiveTab('list')}
             >
               📋 列表
-              {repairs.filter(r => r.status === 'pending').length > 0 && !isAdmin && (
-                <span className="nav-badge">
-                  {repairs.filter(r => r.status === 'pending').length}
-                </span>
-              )}
+              {(() => {
+                // 管理員：顯示「依角色篩選後」的待處理數，讓管理員一眼看到「自己這組要處理幾件」
+                // 未登入 / 一般使用者：顯示全部待處理數
+                const sourceRepairs = isAdmin ? filteredAdminRepairs : repairs;
+                const pendingCount = sourceRepairs.filter(r => r.status === 'pending').length;
+                if (pendingCount === 0) return null;
+                return (
+                  <span
+                    className="nav-badge"
+                    title={isAdmin
+                      ? `${pendingCount} 件待處理（${adminRole === 'ALL' || !adminRole ? '全部' : adminRole === 'IT' ? '資訊組' : '事務組'}）`
+                      : `${pendingCount} 件待處理`}
+                  >
+                    {pendingCount > 99 ? '99+' : pendingCount}
+                  </span>
+                );
+              })()}
             </button>
             {isAdmin && (
               <button
