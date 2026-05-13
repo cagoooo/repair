@@ -531,11 +531,13 @@ function App() {
     }
   }, [activeTab, isAdmin, adminRole]);
 
-  // 🔔 動態頁面標題：顯示待處理報修數
+  // 🔔 動態頁面標題：顯示未完成報修數（pending + in_progress）
   useEffect(() => {
-    const pendingCount = repairs.filter(r => r.status === 'pending').length;
-    document.title = pendingCount > 0
-      ? `(${pendingCount}) 校園報修系統`
+    const unfinishedCount = repairs.filter(
+      r => r.status === 'pending' || r.status === 'in_progress'
+    ).length;
+    document.title = unfinishedCount > 0
+      ? `(${unfinishedCount}) 校園報修系統`
       : '校園報修系統 - 智慧化報修管理';
   }, [repairs]);
 
@@ -818,19 +820,22 @@ function App() {
             >
               📋 列表
               {(() => {
-                // 管理員：顯示「依角色篩選後」的待處理數，讓管理員一眼看到「自己這組要處理幾件」
-                // 未登入 / 一般使用者：顯示全部待處理數
+                // 管理員：顯示「依角色篩選後」的未完成數，讓管理員一眼看到「自己這組還剩幾件」
+                // 未登入 / 一般使用者：顯示全部未完成數
+                // 「未完成」= pending（待處理）+ in_progress（處理中）；只有 completed 才算結案
                 const sourceRepairs = isAdmin ? filteredAdminRepairs : repairs;
-                const pendingCount = sourceRepairs.filter(r => r.status === 'pending').length;
-                if (pendingCount === 0) return null;
+                const unfinishedCount = sourceRepairs.filter(
+                  r => r.status === 'pending' || r.status === 'in_progress'
+                ).length;
+                if (unfinishedCount === 0) return null;
                 return (
                   <span
                     className="nav-badge"
                     title={isAdmin
-                      ? `${pendingCount} 件待處理（${adminRole === 'ALL' || !adminRole ? '全部' : adminRole === 'IT' ? '資訊組' : '事務組'}）`
-                      : `${pendingCount} 件待處理`}
+                      ? `${unfinishedCount} 件未完成（${adminRole === 'ALL' || !adminRole ? '全部' : adminRole === 'IT' ? '資訊組' : '事務組'}）`
+                      : `${unfinishedCount} 件未完成`}
                   >
-                    {pendingCount > 99 ? '99+' : pendingCount}
+                    {unfinishedCount > 99 ? '99+' : unfinishedCount}
                   </span>
                 );
               })()}
