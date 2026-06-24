@@ -4,6 +4,7 @@ import MapLoadingIndicator from './components/MapLoadingIndicator';
 import MapEditor from './components/MapEditor';
 import MapUploader from './components/MapUploader';
 import RepairForm from './components/RepairForm';
+import RoomActionModal from './components/RoomActionModal';
 import RepairList from './components/RepairList';
 import AdminDashboard from './components/AdminDashboard';
 import AdminRoleSelector from './components/AdminRoleSelector';
@@ -60,6 +61,10 @@ function App() {
   const [showRoleSelector, setShowRoleSelector] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [showSetup, setShowSetup] = useState(false);
+  // 點擊已有報修的教室時，先跳出「查看進度 / 新報修」選擇彈窗
+  const [roomActionRoom, setRoomActionRoom] = useState(null);
+  // 從地圖跳轉列表時，預先帶入的教室代碼篩選
+  const [listPresetSearch, setListPresetSearch] = useState('');
 
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -604,11 +609,48 @@ function App() {
     }, 350);
   };
 
-  // 處理教室點擊（報修）
+  // 計算某教室目前未完成（pending + in_progress）的報修，與其中急修數
+  const getRoomPending = (room) => {
+    if (!repairs || repairs.length === 0) return { count: 0, urgentCount: 0 };
+    const roomRepairs = repairs.filter(r => {
+      if (r.status === 'completed' || r.status === 'cancelled') return false;
+      if (r.roomCode && room.code) return r.roomCode === room.code;
+      return r.roomName === room.name;
+    });
+    return {
+      count: roomRepairs.length,
+      urgentCount: roomRepairs.filter(r => r.priority === 'urgent').length,
+    };
+  };
+
+  // 處理教室點擊
   const handleRoomClick = (room) => {
     resetMobileZoom();
     // 同時捲動到頁面頂部，確保彈窗可見
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+
+    // 若該教室已有未完成報修 → 先給「查看進度 / 新報修」兩種選擇
+    const { count } = getRoomPending(room);
+    if (count > 0) {
+      setRoomActionRoom(room);
+      return;
+    }
+
+    // 沒有報修紀錄 → 直接開新報修表單
+    setSelectedRoom(room);
+    setShowRepairForm(true);
+  };
+
+  // 選擇「查看報修進度」→ 跳轉列表並以教室代碼預先篩選
+  const handleViewRoomDetails = (room) => {
+    setRoomActionRoom(null);
+    setListPresetSearch(room.code || room.name || '');
+    setActiveTab('list');
+  };
+
+  // 選擇「我要新報修」→ 開啟報修表單
+  const handleNewRepairForRoom = (room) => {
+    setRoomActionRoom(null);
     setSelectedRoom(room);
     setShowRepairForm(true);
   };
@@ -920,6 +962,8 @@ function App() {
                 onAddComment={handleAddComment}
                 onDeleteRepair={handleDeleteRepair}
                 highlightRepairId={highlightRepairId}
+                presetSearch={listPresetSearch}
+                onConsumePresetSearch={() => setListPresetSearch('')}
                 adminRole={isAdmin ? adminRole : null}
                 onSwitchRole={isAdmin ? () => setShowRoleSelector(true) : null}
                 onViewRoom={(roomId) => {
@@ -1317,6 +1361,18 @@ function App() {
           onSave={handleSaveMapConfig}
           onClose={() => setShowEditor(false)}
           onRoomsChange={handleRoomsChange}
+        />
+      )}
+
+      {/* 教室動作選擇（查看進度 / 新報修） */}
+      {roomActionRoom && (
+        <RoomActionModal
+          room={roomActionRoom}
+          pendingCount={getRoomPending(roomActionRoom).count}
+          urgentCount={getRoomPending(roomActionRoom).urgentCount}
+          onViewDetails={() => handleViewRoomDetails(roomActionRoom)}
+          onNewRepair={() => handleNewRepairForRoom(roomActionRoom)}
+          onClose={() => setRoomActionRoom(null)}
         />
       )}
 
