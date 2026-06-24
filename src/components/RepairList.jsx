@@ -10,7 +10,7 @@ import './RepairList.css';
  * 報修列表元件
  * 顯示所有報修單，支援篩選與狀態更新
  */
-function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment, onDeleteRepair, highlightRepairId, adminRole, onSwitchRole }) {
+function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment, onDeleteRepair, highlightRepairId, adminRole, onSwitchRole, presetSearch, onConsumePresetSearch }) {
     // 角色顯示資訊（管理員用）
     const roleDisplay = {
         IT: { icon: '🖥️', name: '資訊組長' },
@@ -184,6 +184,23 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
             }
         }
     }, [highlightRepairId, repairs]);
+
+    // 從地圖「查看報修進度」跳轉過來：以教室代碼預先篩選，並捲動到列表
+    useEffect(() => {
+        if (!presetSearch) return;
+        setFilter(prev => ({
+            ...prev,
+            search: presetSearch,
+            status: 'all',
+            priority: 'all',
+            category: 'all',
+        }));
+        setTimeout(() => {
+            listSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 150);
+        // 套用後即清掉，避免使用者後續手動清空篩選又被重設
+        onConsumePresetSearch?.();
+    }, [presetSearch, onConsumePresetSearch]);
 
     // 當展開卡片時，載入 comments
     useEffect(() => {
