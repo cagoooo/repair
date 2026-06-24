@@ -250,6 +250,56 @@
     border-width: 1px;
 }
 
+/* 依狀態區分徽章顏色：待處理=琥珀、急修=紅（語意一眼可辨，不分平台都套用） */
+.status-pending .repair-count {
+    background: #f59e0b;
+    box-shadow: 0 2px 6px rgba(245, 158, 11, 0.5);
+}
+.status-urgent .repair-count {
+    background: #ef4444;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.55);
+}
+
+/* === 桌面端徽章強化：更大更醒目，一進來即可掃到待修教室 === */
+@media (min-width: 769px) {
+    .repair-count {
+        min-width: 24px;
+        height: 24px;
+        font-size: 0.95rem;
+        padding: 0 5px;
+        border-width: 2.5px;
+        transform: translate(42%, -42%);
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+    }
+
+    /* 急修徽章脈動，吸引目光優先處理 */
+    .status-urgent .repair-count {
+        animation: badgePulseDesktop 1.5s ease-in-out infinite;
+    }
+
+    /* 放大檢視時再加大 */
+    .zoom-high .repair-count {
+        min-width: 28px;
+        height: 28px;
+        font-size: 1.1rem;
+        border-width: 3px;
+    }
+
+    /* 全覽縮放下仍保持可讀（覆蓋上面 10px 的過小設定） */
+    .zoom-low .repair-count {
+        min-width: 18px;
+        height: 18px;
+        font-size: 0.72rem;
+        padding: 0 4px;
+        border-width: 2px;
+    }
+}
+
+@keyframes badgePulseDesktop {
+    0%, 100% { transform: translate(42%, -42%) scale(1); }
+    50% { transform: translate(42%, -42%) scale(1.18); }
+}
+
 /* 手機版優化 (媒體查詢) */
 @media (max-width: 768px) {
     .map-edit-btn {
