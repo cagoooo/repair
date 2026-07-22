@@ -1,0 +1,130 @@
+.sw-update-prompt {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(440px, calc(100vw - 32px));
+  padding: 14px 16px;
+  border: 1px solid rgba(147, 197, 253, 0.35);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 0.98));
+  color: #f8fafc;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(14px);
+  animation: sw-update-enter 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sw-update-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  font-size: 1.25rem;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.3);
+}
+
+.sw-update-copy {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  line-height: 1.35;
+}
+
+.sw-update-copy strong {
+  font-size: 0.98rem;
+}
+
+.sw-update-copy span {
+  margin-top: 2px;
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+
+.sw-update-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.sw-update-actions button {
+  border: 0;
+  border-radius: 9px;
+  padding: 8px 11px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease, opacity 0.15s ease;
+}
+
+.sw-update-actions button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+.sw-update-actions button:focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+.sw-update-actions button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.sw-update-now {
+  background: linear-gradient(135deg, #fcd34d, #fb923c);
+  color: #422006;
+}
+
+.sw-update-later {
+  background: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+}
+
+@keyframes sw-update-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 640px) {
+  .sw-update-prompt {
+    right: 16px;
+    bottom: 16px;
+    left: 16px;
+    width: auto;
+    flex-wrap: wrap;
+  }
+
+  .sw-update-copy {
+    min-width: calc(100% - 58px);
+  }
+
+  .sw-update-actions {
+    width: 100%;
+    padding-left: 54px;
+  }
+
+  .sw-update-now {
+    flex: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sw-update-prompt {
+    animation: none;
+  }
+}

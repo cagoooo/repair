@@ -1,11 +1,13 @@
 {
   "name": "repair",
   "private": true,
-  "version": "0.10.1",
+  "version": "0.10.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "sync:pwa": "node scripts/sync-pwa-version.mjs",
+    "check:pwa": "node scripts/sync-pwa-version.mjs --check",
+    "build": "npm run sync:pwa && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run"
