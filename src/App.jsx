@@ -732,6 +732,46 @@ function App() {
     }
   };
 
+  // 重新提醒負責組長處理尚未結案的報修單
+  const handleResendNotification = async (repair) => {
+    if (!isAdmin) {
+      toast.warning('僅管理員可重新發送 LINE 提醒');
+      return false;
+    }
+
+    if (!repair || repair.status === 'completed' || repair.status === 'cancelled') {
+      toast.warning('只有尚未結案的報修單可以再次提醒');
+      return false;
+    }
+
+    const isGeneral = repair.category === 'GENERAL';
+    const token = isGeneral ? generalLineToken : itLineToken;
+    const targetId = isGeneral ? generalTargetId : itTargetId;
+    const groupName = isGeneral ? '事務組長' : '資訊組長';
+
+    if (!token || !targetId) {
+      toast.error(`${groupName}的 LINE 通知設定尚未完成`);
+      return false;
+    }
+
+    const message = `[待處理報修提醒]\n地點：${repair.roomCode || ''} ${repair.roomName || ''}\n項目：${repair.itemName || repair.itemType || '未填寫'}\n描述：${repair.description || '未填寫'}\n申報人：${repair.reporterName || '未填寫'}\n請記得查看並安排處理，謝謝您。`;
+    const result = await sendLineNotification(message, {
+      token,
+      proxyUrl: gasProxy,
+      targetId,
+      repairData: repair,
+      notificationType: 'reminder'
+    });
+
+    if (result.success) {
+      toast.success(`已再次提醒${groupName}`);
+      return true;
+    }
+
+    toast.error(`提醒發送失敗：${result.error || '請稍後再試'}`);
+    return false;
+  };
+
   // 新增處理備註 (Firestore subcollection)
   const handleAddComment = async (repairId, text) => {
     if (!isAdmin || !db) return;
@@ -959,6 +999,7 @@ function App() {
                 repairs={isAdmin ? filteredAdminRepairs : repairs}
                 isAdmin={isAdmin}
                 onUpdateStatus={handleUpdateStatus}
+                onResendNotification={handleResendNotification}
                 onAddComment={handleAddComment}
                 onDeleteRepair={handleDeleteRepair}
                 highlightRepairId={highlightRepairId}
