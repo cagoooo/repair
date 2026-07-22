@@ -25,13 +25,17 @@
 }
 
 /* More vibrant and opaque gradients */
-background: radial-gradient(circle at 20% 40%, rgba(59, 130, 246, 0.6) 0%, transparent 50%),
-radial-gradient(circle at 80% 60%, rgba(236, 72, 153, 0.5) 0%, transparent 50%),
-radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.4) 0%, transparent 60%);
-filter: blur(60px);
-/* Sharpen the blobs slightly */
-animation: auroraFlow 10s infinite alternate linear;
-/* Faster animation */
+.footer-aurora::after {
+    content: '';
+    position: absolute;
+    inset: -50% -20%;
+    background: radial-gradient(circle at 20% 40%, rgba(59, 130, 246, 0.6) 0%, transparent 50%),
+        radial-gradient(circle at 80% 60%, rgba(236, 72, 153, 0.5) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.4) 0%, transparent 60%);
+    filter: blur(60px);
+    /* Sharpen the blobs slightly */
+    animation: auroraFlow 10s infinite alternate linear;
+    /* Faster animation */
 }
 
 @keyframes auroraFlow {

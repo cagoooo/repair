@@ -5,6 +5,7 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { REPAIR_CATEGORIES, REPAIR_STATUS } from '../data/repairCategories';
+import { getRoomDisplayName } from '../services/roomConfigService';
 import './AdminDashboard.css';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
@@ -77,13 +78,16 @@ function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair, adminR
 
         // 熱點分析 (Top 10 Rooms)
         const roomCounts = {};
+        const roomLabels = {};
         repairs.forEach(r => {
-            // 組合代號與名稱，避免混淆
-            const key = `${r.roomCode} ${r.roomName}`;
+            // 跨學期以固定教室編號分組，名稱只作為目前顯示標籤。
+            const key = r.roomCode || r.roomName || '未知教室';
+            const currentRoom = rooms.find(room => room.code === r.roomCode);
+            roomLabels[key] = `${key} ${currentRoom ? getRoomDisplayName(currentRoom) : (r.roomName || '')}`.trim();
             roomCounts[key] = (roomCounts[key] || 0) + 1;
         });
         const roomData = Object.entries(roomCounts)
-            .map(([name, count]) => ({ name, count }))
+            .map(([code, count]) => ({ name: roomLabels[code], count }))
             .sort((a, b) => b.count - a.count)
             .slice(0, 10);
 
@@ -105,7 +109,7 @@ function AdminDashboard({ repairs, rooms, onUpdateStatus, onDeleteRepair, adminR
         });
 
         return { ...basic, categoryData, trendData, reporterData, roomData };
-    }, [repairs]);
+    }, [repairs, rooms]);
 
     // 篩選與排序邏輯
     const filteredRepairs = useMemo(() => {

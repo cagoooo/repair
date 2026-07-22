@@ -8,11 +8,23 @@ service firebase.storage {
     match /map-images/{imageId} {
       // 任何人可讀取
       allow read: if true;
-      // 僅管理員可上傳，限制大小 5MB、僅限圖片
+      // 僅管理員可上傳，與前端共用 10MB 限制、僅限圖片
       allow write: if request.auth != null
         && request.auth.token.email == 'ipad@mail2.smes.tyc.edu.tw'
-        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.size <= 10 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
+    }
+
+    // ============================
+    // 📄 教室配置來源 PDF（選用）
+    // ============================
+    match /map-source-pdfs/{pdfId} {
+      allow read: if request.auth != null
+        && request.auth.token.email == 'ipad@mail2.smes.tyc.edu.tw';
+      allow write: if request.auth != null
+        && request.auth.token.email == 'ipad@mail2.smes.tyc.edu.tw'
+        && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType == 'application/pdf';
     }
 
     // ============================

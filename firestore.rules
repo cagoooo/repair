@@ -65,6 +65,12 @@ service cloud.firestore {
     match /system/mapConfig {
       allow read: if true;
       allow write: if isRepairAdmin();
+
+      // 新學期配置版本：僅管理員可查看、建立與復原。
+      // Client schema: src/services/mapConfigService.js
+      match /versions/{versionId} {
+        allow read, write: if isRepairAdmin();
+      }
     }
 
     // ============================

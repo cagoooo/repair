@@ -3,9 +3,16 @@
         "rules": "firestore.rules",
         "indexes": "firestore.indexes.json"
     },
-    "functions": {
-        "source": "functions"
-    },
+    "functions": [
+        {
+            "source": "functions",
+            "codebase": "repair-legacy"
+        },
+        {
+            "source": "functions-map",
+            "codebase": "repair-map"
+        }
+    ],
     "storage": {
         "rules": "storage.rules"
     },

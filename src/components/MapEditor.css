@@ -613,3 +613,121 @@
     /* Center alignment */
     margin-top: -12px;
 }
+/* 新學期配置匯入：辨識結果必須先確認，不能直接覆蓋正式資料 */
+.map-import-review {
+    position: absolute;
+    inset: 0;
+    z-index: 120;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(2, 6, 23, 0.82);
+    backdrop-filter: blur(8px);
+}
+
+.map-import-review-card {
+    width: min(920px, 100%);
+    max-height: min(760px, 88vh);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 22px;
+    overflow: hidden;
+}
+
+.map-import-review-header,
+.map-import-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.map-import-review-header h3,
+.map-import-review-header p,
+.map-import-actions p {
+    margin: 0;
+}
+
+.map-import-review-header p,
+.map-import-actions p,
+.vision-usage-note {
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+}
+
+.vision-usage-note {
+    max-width: 230px;
+    line-height: 1.35;
+}
+
+.map-import-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.map-import-summary span {
+    padding: 10px 12px;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: rgba(15, 23, 42, 0.7);
+}
+
+.map-import-summary .updated { border-color: rgba(245, 158, 11, 0.55); }
+.map-import-summary .added { border-color: rgba(16, 185, 129, 0.55); }
+.map-import-summary .preserved { border-color: rgba(59, 130, 246, 0.55); }
+
+.map-import-error {
+    padding: 10px 12px;
+    color: #fecaca;
+    border: 1px solid rgba(239, 68, 68, 0.55);
+    border-radius: 8px;
+    background: rgba(127, 29, 29, 0.35);
+}
+
+.map-import-table-wrap {
+    overflow: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+}
+
+.map-import-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.map-import-table th,
+.map-import-table td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.map-import-table th {
+    position: sticky;
+    top: 0;
+    background: #172033;
+}
+
+.change-badge {
+    display: inline-flex;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.change-badge.updated { color: #fbbf24; background: rgba(245, 158, 11, 0.15); }
+.change-badge.added { color: #6ee7b7; background: rgba(16, 185, 129, 0.15); }
+.change-badge.preserved { color: #93c5fd; background: rgba(59, 130, 246, 0.15); }
+
+@media (max-width: 760px) {
+    .map-import-review { padding: 8px; }
+    .map-import-review-card { padding: 14px; max-height: 94vh; }
+    .map-import-summary { grid-template-columns: repeat(2, 1fr); }
+    .map-import-review-header,
+    .map-import-actions { align-items: stretch; flex-direction: column; }
+}

@@ -1,21 +1,22 @@
 {
   "name": "repair",
   "private": true,
-  "version": "0.10.2",
+  "version": "0.11.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "sync:pwa": "node scripts/sync-pwa-version.mjs",
     "check:pwa": "node scripts/sync-pwa-version.mjs --check",
+    "audit:map": "node scripts/audit-map-readiness.mjs",
     "build": "npm run sync:pwa && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run"
   },
   "dependencies": {
-    "axios": "^1.13.5",
     "browser-image-compression": "^2.0.2",
     "firebase": "^12.9.0",
+    "pdfjs-dist": "^6.1.200",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-qr-code": "^2.0.18",

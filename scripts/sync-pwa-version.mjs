@@ -22,7 +22,7 @@ if (syncedServiceWorker === originalServiceWorker &&
 
 const versionPayload = `${JSON.stringify({
   version: packageVersion,
-  notes: 'Service Worker 更新通知與安全換版流程'
+  notes: '新學期教室配置安全換版與 OCR 匯入'
 }, null, 2)}\n`;
 const currentVersionPayload = readFileSync(versionPath, 'utf8');
 
