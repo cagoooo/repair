@@ -54,7 +54,7 @@ npm run build
 ### 5. 部署地圖 OCR 後端
 
 ```bash
-firebase deploy --only functions:repair-map --project=smes-e1dc3 --account=ipad@mail2.smes.tyc.edu.tw
+firebase deploy --only functions:repair-map --project=smes-e1dc3 --account=cagooo@gmail.com
 ```
 
 ## 🛠️ 技術堆疊
