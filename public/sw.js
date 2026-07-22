@@ -1,5 +1,6 @@
 // Service Worker — 快取策略：Network First + 靜態資源快取
-const CACHE_NAME = 'repair-v2.8';
+const BUILD_VERSION = '0.10.2';
+const CACHE_NAME = `repair-v${BUILD_VERSION}`;
 const STATIC_ASSETS = [
     './',
     './index.html'
@@ -12,19 +13,34 @@ self.addEventListener('install', (event) => {
             return cache.addAll(STATIC_ASSETS);
         })
     );
-    self.skipWaiting();
+    // 不在這裡 skipWaiting：保留 waiting 狀態，讓使用者決定何時套用新版。
 });
 
 // 啟動：清除舊版快取
 self.addEventListener('activate', (event) => {
     event.waitUntil(
-        caches.keys().then((keys) => {
-            return Promise.all(
-                keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+        (async () => {
+            const keys = await caches.keys();
+            await Promise.all(
+                keys
+                    .filter(key => key.startsWith('repair-v') && key !== CACHE_NAME)
+                    .map(key => caches.delete(key))
             );
-        })
+            await self.clients.claim();
+            const clients = await self.clients.matchAll({ type: 'window' });
+            clients.forEach(client => client.postMessage({
+                type: 'SW_ACTIVATED',
+                version: BUILD_VERSION
+            }));
+        })()
     );
-    self.clients.claim();
+});
+
+// 使用者按下「立即更新」後，才讓 waiting SW 接管頁面。
+self.addEventListener('message', (event) => {
+    if (event.data?.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
 });
 
 // 攔截請求：Network First 策略
@@ -34,15 +50,20 @@ self.addEventListener('fetch', (event) => {
 
     // API / Firestore / Auth 請求不快取
     const url = new URL(event.request.url);
+    if (url.origin !== self.location.origin) return;
+
+    // 版本檔永遠向網路取最新版，不進入一般快取流程。
+    if (url.pathname.endsWith('/version.json')) {
+        event.respondWith(fetch(event.request, { cache: 'no-store' }));
+        return;
+    }
+
     if (url.hostname.includes('firestore') ||
         url.hostname.includes('googleapis') ||
         url.hostname.includes('firebase') ||
         url.hostname.includes('gstatic')) {
         return;
     }
-    // 忽略非 http/https 請求 (例如 chrome-extension://)
-    if (!url.protocol.startsWith('http')) return;
-
     event.respondWith(
         fetch(event.request)
             .then((response) => {

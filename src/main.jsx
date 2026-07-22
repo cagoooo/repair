@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.jsx'
 import { ToastProvider } from './components/Toast.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
+import ServiceWorkerUpdatePrompt from './components/ServiceWorkerUpdatePrompt.jsx'
 
 // 🛡️ 全域未捕獲 Promise 錯誤處理
 window.addEventListener('unhandledrejection', (event) => {
@@ -20,6 +21,7 @@ createRoot(document.getElementById('root')).render(
     <ErrorBoundary>
       <ToastProvider>
         <App />
+        <ServiceWorkerUpdatePrompt />
       </ToastProvider>
     </ErrorBoundary>
   </StrictMode>,
