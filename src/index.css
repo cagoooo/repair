@@ -51,6 +51,37 @@
   --transition-slow: 400ms ease;
 }
 
+/* 左上品牌同時作為返回地圖主畫面的明確入口 */
+.home-brand-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin: -6px -10px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.home-brand-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-1px);
+}
+
+.home-brand-button:focus-visible {
+  outline: 3px solid var(--primary-light);
+  outline-offset: 3px;
+}
+
+.home-brand-button:active {
+  transform: translateY(0);
+}
+
 * {
   margin: 0;
   padding: 0;

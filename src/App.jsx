@@ -880,19 +880,44 @@ function App() {
     }
   };
 
+  // 回到乾淨的地圖主畫面，並關閉可能仍開啟的操作介面
+  const handleGoToMap = () => {
+    setActiveTab('map');
+    setShowEditor(false);
+    setShowRepairForm(false);
+    setSelectedRoom(null);
+    setRoomActionRoom(null);
+    setShowRoleSelector(false);
+    setHighlightRepairId(null);
+    setListPresetSearch('');
+
+    if (window.location.search) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="app">
       {/* 標題列 */}
       <header className="app-header">
         <div className="header-content">
           <h1 className="app-title">
-            <span className="title-icon">🏫</span>
-            校園報修系統
+            <button
+              type="button"
+              className="home-brand-button"
+              onClick={handleGoToMap}
+              aria-label="回到地圖主畫面"
+              title="回到地圖主畫面"
+            >
+              <span className="title-icon" aria-hidden="true">🏫</span>
+              校園報修系統
+            </button>
           </h1>
           <nav className="app-nav">
             <button
               className={`nav-btn ${activeTab === 'map' ? 'active' : ''}`}
-              onClick={() => setActiveTab('map')}
+              onClick={handleGoToMap}
             >
               🗺️ 地圖
             </button>

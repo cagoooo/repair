@@ -1,5 +1,5 @@
 // Service Worker — 快取策略：Network First + 靜態資源快取
-const CACHE_NAME = 'repair-v2.7';
+const CACHE_NAME = 'repair-v2.8';
 const STATIC_ASSETS = [
     './',
     './index.html'
