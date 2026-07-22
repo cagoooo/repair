@@ -731,3 +731,57 @@
     .map-import-review-header,
     .map-import-actions { align-items: stretch; flex-direction: column; }
 }
+
+.map-review-queue {
+    display: grid;
+    gap: 10px;
+    max-height: 280px;
+    padding: 12px;
+    overflow: auto;
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    border-radius: 12px;
+    background: rgba(120, 53, 15, 0.12);
+}
+
+.map-editor-workflow {
+    display: grid;
+    grid-template-columns: auto minmax(220px, 360px) 1fr;
+    align-items: center;
+    gap: 10px;
+    padding: 0 16px;
+}
+
+.map-editor-workflow > label { font-weight: 700; }
+.map-editor-workflow .map-update-stepper { grid-column: 1 / -1; width: 100%; }
+
+.map-review-queue-heading,
+.map-review-item,
+.map-review-decisions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.map-review-queue h4,
+.map-review-queue p { margin: 0; }
+.map-review-queue p,
+.map-review-room small { color: var(--text-secondary); font-size: 0.78rem; }
+.map-review-item { padding: 10px; border-radius: 10px; background: rgba(15, 23, 42, 0.76); }
+.map-review-room { display: grid; grid-template-columns: 64px minmax(160px, 1fr); align-items: center; gap: 7px; flex: 1; }
+.map-review-room small { grid-column: 2; }
+.map-review-room .form-input { padding: 7px 9px; }
+.map-review-decisions { flex-wrap: wrap; justify-content: flex-end; }
+.map-review-decisions button { padding: 6px 9px; color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: 8px; background: transparent; cursor: pointer; }
+.map-review-decisions button.selected { color: white; border-color: #60a5fa; background: #2563eb; }
+.map-review-decisions button.selected.danger { border-color: #f87171; background: #b91c1c; }
+.map-review-decisions button:disabled { opacity: .4; cursor: not-allowed; }
+
+@media (max-width: 760px) {
+    .map-editor-workflow { grid-template-columns: 1fr; }
+    .map-editor-workflow .map-update-stepper { grid-column: auto; }
+    .map-review-queue-heading,
+    .map-review-item { align-items: stretch; flex-direction: column; }
+    .map-review-room { width: 100%; }
+    .map-review-decisions { justify-content: flex-start; }
+}

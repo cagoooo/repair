@@ -1,0 +1,23 @@
+.publish-review-overlay { position: fixed; inset: 0; z-index: 10030; display: grid; place-items: center; padding: 18px; background: rgba(2, 6, 23, .86); }
+.publish-review-card { width: min(820px, 96vw); max-height: 92vh; overflow: auto; padding: 22px; }
+.publish-review-card header, .publish-review-card footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.publish-review-card h2, .publish-review-card p { margin: 0; }
+.publish-review-card header p, .publish-issue p { color: var(--text-secondary); font-size: .88rem; }
+.publish-review-summary { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+.publish-review-summary span { padding: 7px 11px; border-radius: 999px; background: rgba(148, 163, 184, .12); }
+.publish-review-summary .ok { color: #6ee7b7; }
+.publish-review-summary .warning { color: #fbbf24; }
+.publish-review-summary .error { color: #fca5a5; }
+.publish-review-all-clear { padding: 20px; border-radius: 12px; color: #6ee7b7; background: rgba(16, 185, 129, .12); text-align: center; }
+.publish-review-issues { display: grid; gap: 9px; margin-bottom: 18px; }
+.publish-issue { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px; border: 1px solid transparent; border-radius: 12px; }
+.publish-issue.error { border-color: rgba(248, 113, 113, .35); background: rgba(127, 29, 29, .18); }
+.publish-issue.warning { border-color: rgba(251, 191, 36, .3); background: rgba(120, 53, 15, .16); }
+.publish-issue label { flex: 0 0 auto; cursor: pointer; color: #fde68a; }
+.publish-review-card footer { padding-top: 16px; border-top: 1px solid rgba(148, 163, 184, .2); }
+.publish-review-card footer > div { display: flex; align-items: center; gap: 10px; }
+.publish-review-card footer span { max-width: 180px; color: #fca5a5; font-size: .78rem; }
+
+@media (max-width: 700px) {
+  .publish-review-card header, .publish-review-card footer, .publish-review-card footer > div, .publish-issue { align-items: stretch; flex-direction: column; }
+}

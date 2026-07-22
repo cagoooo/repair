@@ -28,6 +28,18 @@ service firebase.storage {
     }
 
     // ============================
+    // 🛡️ 新版教室配置檔案（僅 Cloud Function 可寫）
+    // ============================
+    match /repair-map/images/{imageId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /repair-map/sources/{sourceId} {
+      allow read, write: if false;
+    }
+
+    // ============================
     // 📸 報修圖片
     // ============================
     match /repair-images/{allPaths=**} {

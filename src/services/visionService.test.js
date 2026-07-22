@@ -4,9 +4,11 @@ vi.mock('../firebase', () => ({ functions: {} }));
 vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn() }));
 
 import { convertPixelToPercent, parseVisionAnnotations } from './visionService';
+import regressionSamples from '../../tests/fixtures/map-ocr-regression.json';
 
-const annotation = (description, x, y, width, height) => ({
+const annotation = (description, x, y, width, height, confidence) => ({
   description,
+  confidence,
   boundingPoly: {
     vertices: [
       { x, y },
@@ -16,6 +18,15 @@ const annotation = (description, x, y, width, height) => ({
     ]
   }
 });
+
+const sampleAnnotations = sample => sample.map(item => annotation(
+  item.text,
+  item.x,
+  item.y,
+  item.width,
+  item.height,
+  item.confidence
+));
 
 describe('visionService parser', () => {
   it('辨識一般教室編號、名稱與直排廁所編號', () => {
@@ -42,5 +53,27 @@ describe('visionService parser', () => {
     }], 200, 100);
 
     expect(room.bounds).toEqual({ x: 10, y: 10, width: 20, height: 20 });
+  });
+
+  it('回歸樣本可辨識人工保留的 C640 幼兒園', () => {
+    const rooms = parseVisionAnnotations(sampleAnnotations(regressionSamples.manualKindergarten));
+    const room = rooms.find(item => item.code === 'C640');
+    expect(room?.name).toContain('幼兒園');
+    expect(room?.confidence).toBeCloseTo(0.91);
+  });
+
+  it('密集教室不會互相吞併，並保留低信心資訊', () => {
+    const rooms = parseVisionAnnotations(sampleAnnotations(regressionSamples.denseClassrooms));
+    expect(rooms.map(room => room.code).sort()).toEqual(['C111', 'C112']);
+    expect(rooms.find(room => room.code === 'C111')?.name).toContain('一年一班');
+    expect(rooms.find(room => room.code === 'C112')?.name).toContain('一年二班');
+    expect(rooms.find(room => room.code === 'C112')?.confidence).toBeCloseTo(0.72);
+  });
+
+  it('回歸樣本可修復直排廁所編號', () => {
+    const rooms = parseVisionAnnotations(sampleAnnotations(regressionSamples.verticalToilet));
+    expect(rooms).toHaveLength(1);
+    expect(rooms[0].code).toBe('W301');
+    expect(rooms[0].category).toBe('utility');
   });
 });

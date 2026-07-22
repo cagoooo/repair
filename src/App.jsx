@@ -4,6 +4,8 @@ import MapLoadingIndicator from './components/MapLoadingIndicator';
 import MapEditor from './components/MapEditor';
 import MapUploader from './components/MapUploader';
 import MapVersionHistory from './components/MapVersionHistory';
+import MapUpdateStepper from './components/MapUpdateStepper';
+import PostPublishChecklist from './components/PostPublishChecklist';
 import RepairForm from './components/RepairForm';
 import RoomActionModal from './components/RoomActionModal';
 import RepairList from './components/RepairList';
@@ -23,6 +25,17 @@ const STORAGE_KEYS = {
   MAP_IMAGE: 'repair_map_image',
   ROOMS: 'repair_rooms',
   REPAIRS: 'repair_repairs'
+};
+
+const EMPTY_MAP_WORKFLOW = {
+  updateMode: false,
+  dirty: false,
+  imageUploaded: false,
+  ocrCompleted: false,
+  differencesReviewed: false,
+  calibrationConfirmed: false,
+  published: false,
+  postChecked: false
 };
 
 import { db, auth } from './firebase';
@@ -50,6 +63,8 @@ function App() {
   const [mapSource, setMapSource] = useState({});
   const [mapRevision, setMapRevision] = useState(0);
   const [academicYear, setAcademicYear] = useState('');
+  const [mapWorkflow, setMapWorkflow] = useState(EMPTY_MAP_WORKFLOW);
+  const [showPostPublishChecklist, setShowPostPublishChecklist] = useState(false);
   const mapEditorBackupRef = useRef(null);
   const [rooms, setRooms] = useState([]);
   const [rawRepairs, setRawRepairs] = useState([]); // [MODIFY] Rename to rawRepairs
@@ -77,6 +92,16 @@ function App() {
 
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const warnUnsavedMap = event => {
+      if (!mapWorkflow.dirty) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnUnsavedMap);
+    return () => window.removeEventListener('beforeunload', warnUnsavedMap);
+  }, [mapWorkflow.dirty]);
 
   // 通知設定狀態
   const [itLineToken, setItLineToken] = useState('');
@@ -561,17 +586,23 @@ function App() {
 
   // 處理地圖上傳
   const openMapEditor = () => {
-    mapEditorBackupRef.current = {
-      mapImage,
-      mapOcrImage,
-      mapSource,
-      academicYear,
-      rooms: rooms.map(room => ({ ...room, bounds: { ...room.bounds } }))
-    };
+    if (!mapEditorBackupRef.current) {
+      mapEditorBackupRef.current = {
+        mapImage,
+        mapOcrImage,
+        mapSource,
+        academicYear,
+        rooms: rooms.map(room => ({ ...room, bounds: { ...room.bounds } }))
+      };
+      setMapWorkflow(EMPTY_MAP_WORKFLOW);
+    }
     setShowEditor(true);
   };
 
   const closeMapEditor = () => {
+    if (mapWorkflow.dirty && !confirm('新學期配置尚未正式發布，確定要離開並放棄這次變更嗎？')) {
+      return false;
+    }
     const backup = mapEditorBackupRef.current;
     if (backup) {
       setMapImage(backup.mapImage);
@@ -581,7 +612,9 @@ function App() {
       setRooms(backup.rooms);
     }
     mapEditorBackupRef.current = null;
+    setMapWorkflow(EMPTY_MAP_WORKFLOW);
     setShowEditor(false);
+    return true;
   };
 
   const handleMapUpload = (imageData, fileName, metadata = {}) => {
@@ -608,6 +641,12 @@ function App() {
       ...sourceMetadata,
       sourceFileName: sourceMetadata.sourceFileName || fileName
     });
+    setMapWorkflow({
+      ...EMPTY_MAP_WORKFLOW,
+      updateMode: true,
+      dirty: true,
+      imageUploaded: true
+    });
     setShowSetup(false);
     // 上傳新地圖後開啟編輯器
     setTimeout(() => setShowEditor(true), 300);
@@ -616,23 +655,41 @@ function App() {
   // 處理教室更新
   const handleRoomsChange = (newRooms) => {
     setRooms(newRooms);
+    if (mapWorkflow.updateMode) {
+      setMapWorkflow(current => ({ ...current, dirty: true }));
+    }
+  };
+
+  const handleMapWorkflowChange = patch => {
+    setMapWorkflow(current => ({ ...current, ...patch }));
   };
 
   // 儲存地圖設定到雲端
-  const handleSaveMapConfig = async (newRooms) => {
+  const handleSaveMapConfig = async (newRooms, readinessReport = null) => {
     if (!isAdmin) {
       toast.warning('權限不足：僅管理員可儲存設定');
-      return;
+      return false;
     }
     if (!db) {
       toast.warning('未設定 Firebase 連線，僅儲存於本地瀏覽器。若要啟用雲端同步，請聯絡管理員設定環境變數。');
-      return;
+      return false;
     }
     try {
       const configData = {
         rooms: newRooms,
         academicYear,
-        source: mapSource
+        source: {
+          ...mapSource,
+          ...(readinessReport ? {
+            readiness: {
+              checkedAt: readinessReport.checkedAt,
+              errorCount: readinessReport.errors.length,
+              warningCount: readinessReport.warnings.length,
+              roomCount: readinessReport.metrics.roomCount,
+              repairCount: readinessReport.metrics.repairCount
+            }
+          } : {})
+        }
       };
       // 如果 mapImage 是 URL（非 base64），存為 mapImageUrl
       if (mapImage && !mapImage.startsWith('data:')) {
@@ -652,10 +709,15 @@ function App() {
         academicYear,
         rooms: newRooms.map(room => ({ ...room, bounds: { ...room.bounds } }))
       };
+      setMapWorkflow(current => ({ ...current, published: true, dirty: false }));
+      setShowEditor(false);
+      if (mapWorkflow.updateMode) setShowPostPublishChecklist(true);
       toast.success(`地圖設定已儲存並建立舊版備份（版本 ${result.revision}）！`);
+      return true;
     } catch (error) {
       console.error('儲存失敗:', error);
       toast.error('儲存失敗：' + error.message);
+      return false;
     }
   };
 
@@ -1470,11 +1532,19 @@ function App() {
                       className="form-input"
                       type="text"
                       value={academicYear}
-                      onChange={(event) => setAcademicYear(event.target.value)}
+                      onChange={(event) => {
+                        setAcademicYear(event.target.value);
+                        if (mapWorkflow.updateMode) {
+                          setMapWorkflow(current => ({ ...current, dirty: true }));
+                        }
+                      }}
                       placeholder="例如：新學年度第 1 學期"
                       maxLength={30}
                     />
                   </div>
+                  {mapWorkflow.updateMode && (
+                    <MapUpdateStepper academicYear={academicYear} workflow={mapWorkflow} />
+                  )}
                   <div className="map-preview-area">
                     <MapUploader onUpload={handleMapUpload} currentImage={mapImage} />
                   </div>
@@ -1514,6 +1584,31 @@ function App() {
           onSave={handleSaveMapConfig}
           onClose={closeMapEditor}
           onRoomsChange={handleRoomsChange}
+          academicYear={academicYear}
+          onAcademicYearChange={value => {
+            setAcademicYear(value);
+            setMapWorkflow(current => ({ ...current, dirty: true }));
+          }}
+          baselineRooms={mapEditorBackupRef.current?.rooms || []}
+          repairs={repairs}
+          baselineSource={mapEditorBackupRef.current?.mapSource || {}}
+          source={mapSource}
+          workflow={mapWorkflow}
+          onWorkflowChange={handleMapWorkflowChange}
+          updateMode={mapWorkflow.updateMode}
+        />
+      )}
+
+      {showPostPublishChecklist && (
+        <PostPublishChecklist
+          open
+          academicYear={academicYear}
+          onComplete={() => {
+            setShowPostPublishChecklist(false);
+            setMapWorkflow(current => ({ ...current, postChecked: true }));
+            mapEditorBackupRef.current = null;
+            toast.success('新學期換版與發布後抽查已全部完成！');
+          }}
         />
       )}
 

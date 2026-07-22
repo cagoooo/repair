@@ -1,0 +1,20 @@
+{
+  "manualKindergarten": [
+    { "text": "C640 幼兒園", "x": 0, "y": 0, "width": 120, "height": 40, "confidence": 0.96 },
+    { "text": "C640", "x": 10, "y": 10, "width": 30, "height": 8, "confidence": 0.94 },
+    { "text": "幼兒園", "x": 10, "y": 20, "width": 30, "height": 8, "confidence": 0.91 }
+  ],
+  "denseClassrooms": [
+    { "text": "C111 一年一班 C112 一年二班", "x": 0, "y": 0, "width": 160, "height": 40, "confidence": 0.96 },
+    { "text": "C111", "x": 10, "y": 10, "width": 28, "height": 8, "confidence": 0.95 },
+    { "text": "一年一班", "x": 10, "y": 20, "width": 28, "height": 8, "confidence": 0.91 },
+    { "text": "C112", "x": 70, "y": 10, "width": 28, "height": 8, "confidence": 0.93 },
+    { "text": "一年二班", "x": 70, "y": 20, "width": 28, "height": 8, "confidence": 0.72 }
+  ],
+  "verticalToilet": [
+    { "text": "W301 廁所", "x": 0, "y": 0, "width": 80, "height": 50, "confidence": 0.93 },
+    { "text": "W", "x": 10, "y": 10, "width": 8, "height": 6, "confidence": 0.95 },
+    { "text": "301", "x": 10, "y": 17, "width": 12, "height": 6, "confidence": 0.88 },
+    { "text": "廁所", "x": 10, "y": 24, "width": 18, "height": 6, "confidence": 0.82 }
+  ]
+}

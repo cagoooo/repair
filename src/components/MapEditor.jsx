@@ -4,10 +4,14 @@ import { SHIMEN_ELEMENTARY_TEMPLATE, SHIMEN_KINDERGARTEN_TEMPLATE, AVAILABLE_TEM
 import { detectRoomsFromImage, convertPixelToPercent } from '../services/visionService';
 import { imageSourceToOcrData } from '../services/mapFileService';
 import {
+    applyReviewDecisions,
     getRoomDisplayName,
     mergeRoomsByCode,
     normalizeRoomCode
 } from '../services/roomConfigService';
+import { buildMapReadinessReport, createRehearsalReport } from '../services/mapReadinessService';
+import MapPublishReview from './MapPublishReview';
+import MapUpdateStepper from './MapUpdateStepper';
 import './MapEditor.css';
 
 /**
@@ -15,7 +19,31 @@ import './MapEditor.css';
  * 允許使用者在上傳的教室配置圖上框選教室區域
  * 支援自動辨識功能一鍵載入預設模板
  */
-const MapEditor = ({ imageUrl, ocrImageUrl, rooms = [], onSave, onClose, onRoomsChange }) => {
+const REVIEW_REASON_LABELS = {
+    name_changed: '名稱與舊資料不同',
+    new_room: '新辨識到的教室',
+    not_detected: 'OCR 未辨識，沿用舊座標',
+    missing_name: '沒有辨識到名稱',
+    low_confidence: 'OCR 信心偏低'
+};
+
+const MapEditor = ({
+    imageUrl,
+    ocrImageUrl,
+    rooms = [],
+    onSave,
+    onClose,
+    onRoomsChange,
+    academicYear = '',
+    onAcademicYearChange = () => {},
+    baselineRooms = [],
+    repairs = [],
+    baselineSource = {},
+    source = {},
+    workflow = {},
+    onWorkflowChange = () => {},
+    updateMode = false
+}) => {
     const [isDrawing, setIsDrawing] = useState(false);
     const [startPos, setStartPos] = useState(null);
     const [currentRect, setCurrentRect] = useState(null);
@@ -24,6 +52,10 @@ const MapEditor = ({ imageUrl, ocrImageUrl, rooms = [], onSave, onClose, onRooms
     const [isAutoDetecting, setIsAutoDetecting] = useState(false);
     const [showAutoDetectSuccess, setShowAutoDetectSuccess] = useState(false);
     const [importPreview, setImportPreview] = useState(null);
+    const [reviewDecisions, setReviewDecisions] = useState({});
+    const [acknowledgedWarnings, setAcknowledgedWarnings] = useState([]);
+    const [publishReport, setPublishReport] = useState(null);
+    const [isPublishing, setIsPublishing] = useState(false);
 
     // 校正模式狀態
     const [showCalibration, setShowCalibration] = useState(false);
@@ -122,6 +154,7 @@ const MapEditor = ({ imageUrl, ocrImageUrl, rooms = [], onSave, onClose, onRooms
         }));
 
         onRoomsChange(newRooms);
+        onWorkflowChange({ calibrationConfirmed: true, dirty: true });
         setTransform({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
         setCalibrationStep(0);
         setCalibrationClicks([]);
@@ -175,6 +208,8 @@ const MapEditor = ({ imageUrl, ocrImageUrl, rooms = [], onSave, onClose, onRooms
 
         const preview = mergeRoomsByCode(rooms, template.rooms);
         setImportPreview(preview);
+        setReviewDecisions({});
+        onWorkflowChange({ differencesReviewed: false, calibrationConfirmed: false, dirty: true });
         setIsAutoDetecting(false);
         setShowAutoDetectSuccess(true);
         setTimeout(() => setShowAutoDetectSuccess(false), 3000);
@@ -200,7 +235,23 @@ const MapEditor = ({ imageUrl, ocrImageUrl, rooms = [], onSave, onClose, onRooms
             if (processedRooms.length === 0) {
                 alert('AI 未能辨識出任何教室，請確認圖片文字是否清晰。');
             } else {
-                setImportPreview(mergeRoomsByCode(rooms, processedRooms));
+                const preview = mergeRoomsByCode(rooms, processedRooms);
+                setImportPreview(preview);
+                setReviewDecisions({});
+                onWorkflowChange({
+                    ocrCompleted: true,
+                    ocrMetrics: {
+                        detectedCount: processedRooms.length,
+                        matchedCount: preview.updated.length + preview.unchanged.length,
+                        addedCount: preview.added.length,
+                        notDetectedCount: preview.preserved.length,
+                        lowConfidenceCount: preview.reviewItems.filter(item => item.reasons.includes('low_confidence')).length,
+                        duplicateCodeCount: preview.duplicateDetectedCodes.length
+                    },
+                    differencesReviewed: false,
+                    calibrationConfirmed: false,
+                    dirty: true
+                });
                 setShowAutoDetectSuccess(true);
                 setTimeout(() => setShowAutoDetectSuccess(false), 3000);
             }
@@ -223,6 +274,7 @@ const MapEditor = ({ imageUrl, ocrImageUrl, rooms = [], onSave, onClose, onRooms
             }
         }));
         onRoomsChange(newRooms);
+        onWorkflowChange({ calibrationConfirmed: true, dirty: true });
         setTransform({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
         setShowCalibration(false);
     };
@@ -238,13 +290,101 @@ const MapEditor = ({ imageUrl, ocrImageUrl, rooms = [], onSave, onClose, onRooms
         }
     };
 
+    const handleReviewDecision = (code, decision) => {
+        setReviewDecisions(current => ({ ...current, [code]: decision }));
+    };
+
+    const handleReviewRoomName = (code, name) => {
+        setImportPreview(current => {
+            if (!current) return current;
+            const updateRoom = room => normalizeRoomCode(room.code) === code ? { ...room, name } : room;
+            return {
+                ...current,
+                mergedRooms: current.mergedRooms.map(updateRoom),
+                reviewItems: current.reviewItems.map(item => item.code === code
+                    ? { ...item, room: { ...item.room, name } }
+                    : item)
+            };
+        });
+        handleReviewDecision(code, 'edit');
+    };
+
     const handleApplyImport = () => {
         if (!importPreview?.canApply) return;
-        onRoomsChange(importPreview.mergedRooms);
+        try {
+            const result = applyReviewDecisions(importPreview, reviewDecisions);
+            onRoomsChange(result.rooms);
+        } catch (error) {
+            alert(error.message);
+            return;
+        }
         setImportPreview(null);
+        setReviewDecisions({});
         setShowCalibration(true);
         setCalibrationStep(0);
         setCalibrationClicks([]);
+        onWorkflowChange({ differencesReviewed: true, calibrationConfirmed: false, dirty: true });
+    };
+
+    const getReadinessReport = (warnings = acknowledgedWarnings) => buildMapReadinessReport({
+        academicYear,
+        baselineRooms,
+        rooms,
+        repairs,
+        baselineSource,
+        source,
+        workflow,
+        updateMode,
+        unresolvedReviewItems: importPreview?.reviewItems?.filter(item => !reviewDecisions[item.code]) || [],
+        acknowledgedWarnings: warnings
+    });
+
+    const handleOpenPublishReview = () => {
+        setAcknowledgedWarnings([]);
+        setPublishReport(getReadinessReport([]));
+    };
+
+    const handleToggleWarning = warningId => {
+        const next = acknowledgedWarnings.includes(warningId)
+            ? acknowledgedWarnings.filter(id => id !== warningId)
+            : [...acknowledgedWarnings, warningId];
+        setAcknowledgedWarnings(next);
+        setPublishReport(getReadinessReport(next));
+    };
+
+    const handleDownloadRehearsal = () => {
+        const rehearsal = createRehearsalReport({
+            academicYear,
+            baselineRooms,
+            rooms,
+            repairs,
+            baselineSource,
+            source,
+            workflow,
+            updateMode,
+            unresolvedReviewItems: importPreview?.reviewItems?.filter(item => !reviewDecisions[item.code]) || [],
+            acknowledgedWarnings
+        });
+        const blob = new Blob([JSON.stringify(rehearsal, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `map-rehearsal-${academicYear || 'draft'}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const handlePublish = async () => {
+        const report = getReadinessReport(acknowledgedWarnings);
+        setPublishReport(report);
+        if (!report.canPublish) return;
+        setIsPublishing(true);
+        try {
+            const saved = await onSave?.(rooms, report);
+            if (saved !== false) setPublishReport(null);
+        } finally {
+            setIsPublishing(false);
+        }
     };
 
     // Canvas Event Handlers
@@ -808,9 +948,15 @@ const MapEditor = ({ imageUrl, ocrImageUrl, rooms = [], onSave, onClose, onRooms
                                         📐 校正位置
                                     </button>
                                 )}
+                                {updateMode && rooms.length > 0 && !workflow.calibrationConfirmed && (
+                                    <button
+                                        className="btn btn-secondary"
+                                        onClick={() => onWorkflowChange({ calibrationConfirmed: true, dirty: true })}
+                                    >✅ 位置已人工確認</button>
+                                )}
                                 {rooms.length > 0 && onSave && (
-                                    <button className="btn btn-primary" onClick={() => onSave(rooms)}>
-                                        💾 儲存設定
+                                    <button className="btn btn-primary" onClick={updateMode ? handleOpenPublishReview : () => onSave(rooms)}>
+                                        {updateMode ? '🛡️ 發布前檢查' : '💾 儲存設定'}
                                     </button>
                                 )}
                                 {rooms.length > 0 && (
@@ -844,6 +990,21 @@ const MapEditor = ({ imageUrl, ocrImageUrl, rooms = [], onSave, onClose, onRooms
                         )}
                     </div>
                 </div>
+
+                {updateMode && (
+                    <div className="map-editor-workflow">
+                        <label htmlFor="map-editor-academic-year">學年度／學期</label>
+                        <input
+                            id="map-editor-academic-year"
+                            className="form-input"
+                            value={academicYear}
+                            maxLength={30}
+                            placeholder="例如：115學年度第1學期"
+                            onChange={event => onAcademicYearChange(event.target.value)}
+                        />
+                        <MapUpdateStepper academicYear={academicYear} workflow={workflow} compact />
+                    </div>
+                )}
 
                 {importPreview && (
                     <div className="map-import-review" role="dialog" aria-modal="true" aria-labelledby="map-import-title">
@@ -903,11 +1064,48 @@ const MapEditor = ({ imageUrl, ocrImageUrl, rooms = [], onSave, onClose, onRooms
                                 </table>
                             </div>
 
+                            {importPreview.reviewItems.length > 0 && (
+                                <section className="map-review-queue">
+                                    <div className="map-review-queue-heading">
+                                        <div>
+                                            <h4>⚠️ 低信心／未辨識確認佇列</h4>
+                                            <p>每一筆都必須選擇處理方式，才能套用辨識結果。</p>
+                                        </div>
+                                        <button
+                                            className="btn btn-sm btn-secondary"
+                                            onClick={() => setReviewDecisions(Object.fromEntries(
+                                                importPreview.reviewItems.map(item => [item.code, 'confirm'])
+                                            ))}
+                                        >全部確認正確</button>
+                                    </div>
+                                    {importPreview.reviewItems.map(item => (
+                                        <article className="map-review-item" key={item.code}>
+                                            <div className="map-review-room">
+                                                <strong>{item.code}</strong>
+                                                <input
+                                                    className="form-input"
+                                                    aria-label={`${item.code} 教室名稱`}
+                                                    value={getRoomDisplayName(item.room)}
+                                                    onChange={event => handleReviewRoomName(item.code, event.target.value)}
+                                                />
+                                                <small>{item.reasons.map(reason => REVIEW_REASON_LABELS[reason] || reason).join('、')}</small>
+                                            </div>
+                                            <div className="map-review-decisions" role="group" aria-label={`${item.code} 處理方式`}>
+                                                <button className={reviewDecisions[item.code] === 'confirm' ? 'selected' : ''} onClick={() => handleReviewDecision(item.code, 'confirm')}>確認正確</button>
+                                                <button className={reviewDecisions[item.code] === 'edit' ? 'selected' : ''} onClick={() => handleReviewDecision(item.code, 'edit')}>手動修正</button>
+                                                <button disabled={!item.before} className={reviewDecisions[item.code] === 'keep' ? 'selected' : ''} onClick={() => handleReviewDecision(item.code, 'keep')}>保留舊資料</button>
+                                                <button className={reviewDecisions[item.code] === 'hide' ? 'selected danger' : ''} onClick={() => handleReviewDecision(item.code, 'hide')}>暫不顯示</button>
+                                            </div>
+                                        </article>
+                                    ))}
+                                </section>
+                            )}
+
                             <div className="map-import-actions">
-                                <p>套用後仍須按「儲存設定」才會更新雲端，儲存前會自動備份舊版本。</p>
+                                <p>已處理 {Object.keys(reviewDecisions).length} / {importPreview.reviewItems.length} 筆；套用後仍須通過發布前檢查。</p>
                                 <button
                                     className="btn btn-primary"
-                                    disabled={!importPreview.canApply}
+                                    disabled={!importPreview.canApply || importPreview.reviewItems.some(item => !reviewDecisions[item.code])}
                                     onClick={handleApplyImport}
                                 >✅ 套用比對結果（共 {importPreview.mergedRooms.length} 間）</button>
                             </div>
@@ -1302,6 +1500,16 @@ const MapEditor = ({ imageUrl, ocrImageUrl, rooms = [], onSave, onClose, onRooms
                         <span className="legend-item"><span className="legend-dot utility"></span> 公共設施</span>
                     </div>
                 </div>
+
+                <MapPublishReview
+                    report={publishReport}
+                    acknowledgedWarnings={acknowledgedWarnings}
+                    onToggleWarning={handleToggleWarning}
+                    onClose={() => setPublishReport(null)}
+                    onPublish={handlePublish}
+                    onDownload={handleDownloadRehearsal}
+                    publishing={isPublishing}
+                />
             </div>
         </div >
     );

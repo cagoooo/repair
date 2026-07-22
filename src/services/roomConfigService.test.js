@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyReviewDecisions,
   getRoomDisplayName,
   mergeRoomsByCode,
   normalizeRoomCode,
@@ -34,6 +35,15 @@ describe('roomConfigService', () => {
       name: 'C112 三年甲班'
     });
     expect(result.updated).toHaveLength(1);
+    expect(result.reviewItems[0]).toMatchObject({ code: 'C112', reasons: ['name_changed'] });
+  });
+
+  it('疑慮教室必須決定後才能套用，並可選擇沿用舊資料', () => {
+    const current = [room('C112', '舊班名')];
+    const result = mergeRoomsByCode(current, [room('C112', '新班名', 'new-id')]);
+    expect(() => applyReviewDecisions(result, {})).toThrow('尚有 1 間');
+    const applied = applyReviewDecisions(result, { C112: 'keep' });
+    expect(applied.rooms[0]).toMatchObject({ name: '舊班名', reviewStatus: 'kept' });
   });
 
   it('OCR 未辨識的人工教室會保留而不是被刪除', () => {

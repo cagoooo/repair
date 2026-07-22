@@ -1,7 +1,7 @@
 {
   "name": "repair",
   "private": true,
-  "version": "0.11.0",
+  "version": "0.12.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,7 +11,9 @@
     "build": "npm run sync:pwa && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run --exclude tests/firebaseRules.test.js",
+    "test:rules": "npx --yes firebase-tools@15.1.0 emulators:exec --only firestore,storage --project demo-repair \"vitest run tests/firebaseRules.test.js\"",
+    "test:safety": "npm test && npm run test:rules"
   },
   "dependencies": {
     "browser-image-compression": "^2.0.2",
@@ -25,6 +27,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@firebase/rules-unit-testing": "^5.0.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.5",

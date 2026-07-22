@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { storage } from '../firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { functions } from '../firebase';
 import {
     blobToDataUrl,
+    loadImageDimensions,
     openPdfFile,
     renderPdfPage,
     validateMapFile
 } from '../services/mapFileService';
+import { uploadMapFile } from '../services/mapUploadService';
 import './MapUploader.css';
 
 /**
@@ -61,31 +62,31 @@ function MapUploader({ onUpload, currentImage }) {
         setIsUploading(true);
         try {
             const ocrDataUrl = metadata.ocrDataUrl || await blobToDataUrl(imageBlob);
-            let sourceFileUrl = '';
+            const dimensions = await loadImageDimensions(ocrDataUrl);
+            let sourceFilePath = '';
 
-            if (storage) {
-                const timestamp = Date.now();
-                const safeImageName = imageName.replace(/[^a-zA-Z0-9._-]/g, '_');
-                const storageRef = ref(storage, `map-images/${timestamp}_${safeImageName}`);
-                await uploadBytes(storageRef, imageBlob, { contentType: imageBlob.type || 'image/png' });
-                const downloadURL = await getDownloadURL(storageRef);
+            if (functions) {
+                const uploadedImage = await uploadMapFile(imageBlob, imageName, 'image');
 
                 if (metadata.sourceFile) {
                     try {
-                        const safeSourceName = metadata.sourceFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-                        const sourceRef = ref(storage, `map-source-pdfs/${timestamp}_${safeSourceName}`);
-                        await uploadBytes(sourceRef, metadata.sourceFile, { contentType: 'application/pdf' });
-                        sourceFileUrl = await getDownloadURL(sourceRef);
+                        const uploadedSource = await uploadMapFile(
+                            metadata.sourceFile,
+                            metadata.sourceFile.name,
+                            'pdf'
+                        );
+                        sourceFilePath = uploadedSource.storagePath;
                     } catch (sourceError) {
                         // PDF 原檔是選用備查；轉換後的正式圖片已成功上傳，不阻塞換圖流程。
                         console.warn('PDF 原檔未保存，但轉換圖片可繼續使用：', sourceError);
                     }
                 }
 
-                onUpload(downloadURL, imageName, {
+                onUpload(uploadedImage.downloadURL, imageName, {
                     ...metadata,
                     sourceFile: undefined,
-                    sourceFileUrl,
+                    sourceFilePath,
+                    ...dimensions,
                     ocrDataUrl
                 });
             } else {
@@ -93,6 +94,7 @@ function MapUploader({ onUpload, currentImage }) {
                 onUpload(ocrDataUrl, imageName, {
                     ...metadata,
                     sourceFile: undefined,
+                    ...dimensions,
                     ocrDataUrl
                 });
             }

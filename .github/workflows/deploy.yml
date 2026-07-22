@@ -22,8 +22,20 @@ jobs:
           node-version: 20
           cache: 'npm'
 
+      - name: Set up Java for Firebase emulators
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
       - name: Install dependencies
         run: npm ci
+
+      - name: Unit and deployment safety tests
+        run: npm test
+
+      - name: Firebase rules regression tests
+        run: npm run test:rules
 
       - name: Build
         run: npm run build

@@ -33,6 +33,7 @@ export const parseVisionAnnotations = (annotations = []) => {
 
             return {
                 text,
+                confidence: Number.isFinite(ann.confidence) ? Number(ann.confidence) : null,
                 pixelBounds: { x, y, width: xMax - x, height: yMax - y },
                 used: false
             };
@@ -158,6 +159,12 @@ export const parseVisionAnnotations = (annotations = []) => {
                 code: anchor.text,
                 name: combinedName,
                 category,
+                confidence: Math.min(
+                    ...[anchor, ...neighbors]
+                        .map(item => item.confidence)
+                        .filter(Number.isFinite),
+                    1
+                ),
                 pixelBounds: finalBounds
             });
         });

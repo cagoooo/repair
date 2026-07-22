@@ -81,6 +81,31 @@ function roomChanged(existing, incoming) {
     JSON.stringify(existing.bounds) !== JSON.stringify(incoming.bounds);
 }
 
+function buildReviewItems({ updated, added, preserved, mergedRooms }) {
+  const items = new Map();
+  const addReason = (code, reason, room, before = null) => {
+    const current = items.get(code) || { code, room, before, reasons: [] };
+    if (!current.reasons.includes(reason)) current.reasons.push(reason);
+    items.set(code, current);
+  };
+
+  updated.forEach(change => {
+    if (getRoomDisplayName(change.before) !== getRoomDisplayName(change.after)) {
+      addReason(change.code, 'name_changed', change.after, change.before);
+    }
+  });
+  added.forEach(room => addReason(room.code, 'new_room', room));
+  preserved.forEach(room => addReason(room.code, 'not_detected', room, room));
+  mergedRooms.forEach(room => {
+    if (!getRoomDisplayName(room)) addReason(room.code, 'missing_name', room);
+    if (Number.isFinite(room.confidence) && room.confidence < 0.8) {
+      addReason(room.code, 'low_confidence', room);
+    }
+  });
+
+  return [...items.values()];
+}
+
 export function mergeRoomsByCode(currentRooms = [], detectedRooms = []) {
   const currentByCode = new Map();
   const detectedByCode = new Map();
@@ -134,6 +159,7 @@ export function mergeRoomsByCode(currentRooms = [], detectedRooms = []) {
   });
 
   const validation = validateRooms(mergedRooms);
+  const reviewItems = buildReviewItems({ updated, added, preserved, mergedRooms });
 
   return {
     mergedRooms,
@@ -142,9 +168,31 @@ export function mergeRoomsByCode(currentRooms = [], detectedRooms = []) {
     added,
     preserved,
     duplicateDetectedCodes: [...new Set(duplicateDetectedCodes)],
+    reviewItems,
     validation,
     canApply: validation.valid && duplicateDetectedCodes.length === 0
   };
+}
+
+export function applyReviewDecisions(mergeResult, decisions = {}) {
+  const unresolved = (mergeResult?.reviewItems || []).filter(item => !decisions[item.code]);
+  if (unresolved.length > 0) {
+    throw new Error(`尚有 ${unresolved.length} 間疑慮教室未確認`);
+  }
+
+  const reviewByCode = new Map((mergeResult.reviewItems || []).map(item => [item.code, item]));
+  const rooms = (mergeResult.mergedRooms || []).flatMap(room => {
+    const item = reviewByCode.get(room.code);
+    if (!item) return [room];
+    const decision = decisions[room.code];
+    if (decision === 'hide') return [];
+    if (decision === 'keep' && item.before) {
+      return [{ ...item.before, reviewStatus: 'kept', reviewReasons: item.reasons }];
+    }
+    return [{ ...room, reviewStatus: 'confirmed', reviewReasons: item.reasons }];
+  });
+
+  return { rooms, unresolved: [] };
 }
 
 export function summarizeMapBaseline(rooms = [], repairs = []) {
