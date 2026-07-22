@@ -10,7 +10,20 @@ import './RepairList.css';
  * 報修列表元件
  * 顯示所有報修單，支援篩選與狀態更新
  */
-function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment, onDeleteRepair, highlightRepairId, adminRole, onSwitchRole, presetSearch, onConsumePresetSearch }) {
+function RepairList({
+    repairs,
+    isAdmin,
+    onUpdateStatus,
+    onResendNotification,
+    onViewRoom,
+    onAddComment,
+    onDeleteRepair,
+    highlightRepairId,
+    adminRole,
+    onSwitchRole,
+    presetSearch,
+    onConsumePresetSearch
+}) {
     // 角色顯示資訊（管理員用）
     const roleDisplay = {
         IT: { icon: '🖥️', name: '資訊組長' },
@@ -166,6 +179,18 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
     const [commentLoading, setCommentLoading] = useState(false);
     // 各報修單的回覆列表
     const [commentsMap, setCommentsMap] = useState({});
+    // 每筆報修單獨立鎖定，避免 LINE 提醒按鈕被連點重複發送
+    const [remindingId, setRemindingId] = useState(null);
+
+    const handleResendReminder = async (repair) => {
+        if (!onResendNotification || remindingId) return;
+        setRemindingId(repair.id);
+        try {
+            await onResendNotification(repair);
+        } finally {
+            setRemindingId(null);
+        }
+    };
 
     // 自動展開並捲動到指定報修單 (Deep Linking)
     useEffect(() => {
@@ -774,47 +799,58 @@ function RepairList({ repairs, isAdmin, onUpdateStatus, onViewRoom, onAddComment
                                     </div>
                                 )}
 
-                                {/* 管理員操作按鈕 */}
-                                {isAdmin && repair.status !== 'completed' && repair.status !== 'cancelled' && (
-                                    <button
-                                        className="btn btn-primary btn-sm"
-                                        onClick={() => onUpdateStatus(repair.id, getNextStatus(repair.status))}
-                                    >
-                                        {repair.status === 'pending' ? '🔄 開始處理' : '✅ 標記完成'}
-                                    </button>
-                                )}
+                                {(isAdmin || (repair.isMine && repair.status === 'pending') || isExpanded) && (
+                                    <div className="repair-card-actions">
+                                    {/* 管理員操作按鈕 */}
+                                    {isAdmin && repair.status !== 'completed' && repair.status !== 'cancelled' && (
+                                        <>
+                                            <button
+                                                className="btn btn-primary btn-sm"
+                                                onClick={() => onUpdateStatus(repair.id, getNextStatus(repair.status))}
+                                            >
+                                                {repair.status === 'pending' ? '🔄 開始處理' : '✅ 標記完成'}
+                                            </button>
+                                            <button
+                                                className="btn btn-remind btn-sm"
+                                                onClick={() => handleResendReminder(repair)}
+                                                disabled={remindingId !== null}
+                                                aria-label={`再次提醒${repair.category === 'GENERAL' ? '事務組長' : '資訊組長'}處理此報修單`}
+                                            >
+                                                {remindingId === repair.id ? '⏳ 發送中…' : '🔔 再次提醒組長'}
+                                            </button>
+                                        </>
+                                    )}
 
-                                {/* 使用者撤銷按鈕 (若是自己的報修且狀態為 pending) */}
-                                {!isAdmin && repair.isMine && repair.status === 'pending' && (
-                                    <button
-                                        className="btn btn-danger btn-sm"
-                                        style={{ marginLeft: '10px', backgroundColor: '#ff6b6b' }}
-                                        onClick={() => onDeleteRepair(repair.id)}
-                                    >
-                                        🗑️ 撤銷申請
-                                    </button>
-                                )}
+                                    {/* 使用者撤銷按鈕 (若是自己的報修且狀態為 pending) */}
+                                    {!isAdmin && repair.isMine && repair.status === 'pending' && (
+                                        <button
+                                            className="btn btn-danger btn-sm"
+                                            onClick={() => onDeleteRepair(repair.id)}
+                                        >
+                                            🗑️ 撤銷申請
+                                        </button>
+                                    )}
 
-                                {/* 管理員刪除按鈕 */}
-                                {isAdmin && (
-                                    <button
-                                        className="btn btn-danger btn-sm"
-                                        style={{ marginLeft: '10px' }}
-                                        onClick={() => onDeleteRepair(repair.id)}
-                                    >
-                                        ❌ 刪除
-                                    </button>
-                                )}
+                                    {/* 管理員刪除按鈕 */}
+                                    {isAdmin && (
+                                        <button
+                                            className="btn btn-danger btn-sm"
+                                            onClick={() => onDeleteRepair(repair.id)}
+                                        >
+                                            ❌ 刪除
+                                        </button>
+                                    )}
 
-                                {/* 列印按鈕 (所有人皆可見) */}
-                                {isExpanded && (
-                                    <button
-                                        className="btn btn-secondary btn-sm"
-                                        style={{ marginLeft: '10px' }}
-                                        onClick={() => handlePrint(repair)}
-                                    >
-                                        🖨️ 列印報修單
-                                    </button>
+                                    {/* 列印按鈕 (所有人皆可見) */}
+                                    {isExpanded && (
+                                        <button
+                                            className="btn btn-secondary btn-sm"
+                                            onClick={() => handlePrint(repair)}
+                                        >
+                                            🖨️ 列印報修單
+                                        </button>
+                                    )}
+                                    </div>
                                 )}
                             </div>
                         );

@@ -27,7 +27,11 @@ export const sendLineNotification = async (message, config = {}) => {
 
     if (config.repairData) {
       // Enhanced mode: Send Flex Message
-      const flexMessage = createRepairFlexMessage(config.repairData, message);
+      const flexMessage = createRepairFlexMessage(
+        config.repairData,
+        message,
+        config.notificationType || 'new'
+      );
       messages = [flexMessage];
     } else {
       // Legacy/Simple mode: Send Text Message
@@ -87,13 +91,70 @@ function doPost(e) {
 /**
  * Create a Flex Message for Repair Notification
  */
-const createRepairFlexMessage = (data, fallbackText) => {
-  // Determine header color based on priority
-  const headerColor = data.priority === 'urgent' ? '#ef4444' : '#10b981'; // Red for urgent, Green for others
-  const statusText = '新報修通知';
+const createRepairFlexMessage = (data, fallbackText, notificationType = 'new') => {
+  const isReminder = notificationType === 'reminder';
+  // LINE Flex 標題使用深色背景，確保白字在手機上清楚可讀
+  const headerColor = isReminder
+    ? '#92400E'
+    : (data.priority === 'urgent' ? '#991B1B' : '#065F46');
+  const subColor = isReminder
+    ? '#FDE68A'
+    : (data.priority === 'urgent' ? '#FECACA' : '#A7F3D0');
+  const statusText = isReminder ? '待處理報修提醒' : '新報修通知';
+  const categoryName = data.category === 'GENERAL' ? '事務組' : '資訊組';
+  const detailUrl = data.id
+    ? `https://cagoooo.github.io/repair/?repairId=${encodeURIComponent(data.id)}`
+    : 'https://cagoooo.github.io/repair/';
+
+  const bodyContents = [];
+  if (isReminder) {
+    bodyContents.push({
+      type: 'text',
+      text: '這筆報修仍待處理，請記得查看並安排處理，謝謝您。',
+      size: 'sm',
+      color: '#92400E',
+      weight: 'bold',
+      wrap: true
+    });
+  }
+
+  const fields = [
+    ['地點', `${data.roomCode || ''} ${data.roomName || ''}`.trim() || '未填寫'],
+    ['類別', `${categoryName}・${data.itemName || data.itemType || '未填寫'}`],
+    ['申報人', data.reporterName || '未填寫'],
+    ['描述', data.description || '未填寫']
+  ];
+
+  fields.forEach(([label, value], index) => {
+    bodyContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'sm',
+      contents: [
+        {
+          type: 'text',
+          text: label,
+          size: 'sm',
+          color: '#64748B',
+          weight: 'bold',
+          flex: 4
+        },
+        {
+          type: 'text',
+          text: value,
+          size: 'sm',
+          color: '#0F172A',
+          flex: 6,
+          wrap: true
+        }
+      ],
+      margin: (index === 0 && !isReminder) ? 'none' : 'md'
+    });
+  });
 
   const bubble = {
     type: 'bubble',
+    size: 'mega',
     header: {
       type: 'box',
       layout: 'vertical',
@@ -102,14 +163,14 @@ const createRepairFlexMessage = (data, fallbackText) => {
           type: 'text',
           text: '校園報修系統',
           weight: 'bold',
-          color: '#ffffff',
+          color: subColor,
           size: 'sm'
         },
         {
           type: 'text',
           text: statusText,
           weight: 'bold',
-          color: '#ffffff',
+          color: '#FFFFFF',
           size: 'xl',
           margin: 'md'
         }
@@ -120,95 +181,7 @@ const createRepairFlexMessage = (data, fallbackText) => {
     body: {
       type: 'box',
       layout: 'vertical',
-      contents: [
-        {
-          type: 'box',
-          layout: 'horizontal',
-          contents: [
-            {
-              type: 'text',
-              text: '地點',
-              size: 'sm',
-              color: '#aaaaaa',
-              flex: 2
-            },
-            {
-              type: 'text',
-              text: data.roomName || data.roomCode,
-              size: 'sm',
-              color: '#666666',
-              flex: 5,
-              wrap: true
-            }
-          ]
-        },
-        {
-          type: 'box',
-          layout: 'horizontal',
-          contents: [
-            {
-              type: 'text',
-              text: '項目',
-              size: 'sm',
-              color: '#aaaaaa',
-              flex: 2
-            },
-            {
-              type: 'text',
-              text: `${data.category} - ${data.itemName || data.itemType}`,
-              size: 'sm',
-              color: '#666666',
-              flex: 5,
-              wrap: true
-            }
-          ],
-          margin: 'md'
-        },
-        {
-          type: 'box',
-          layout: 'horizontal',
-          contents: [
-            {
-              type: 'text',
-              text: '申報人',
-              size: 'sm',
-              color: '#aaaaaa',
-              flex: 2
-            },
-            {
-              type: 'text',
-              text: data.reporterName,
-              size: 'sm',
-              color: '#666666',
-              flex: 5,
-              wrap: true
-            }
-          ],
-          margin: 'md'
-        },
-        {
-          type: 'box',
-          layout: 'horizontal',
-          contents: [
-            {
-              type: 'text',
-              text: '描述',
-              size: 'sm',
-              color: '#aaaaaa',
-              flex: 2
-            },
-            {
-              type: 'text',
-              text: data.description,
-              size: 'sm',
-              color: '#666666',
-              flex: 5,
-              wrap: true
-            }
-          ],
-          margin: 'md'
-        }
-      ],
+      contents: bodyContents,
       paddingAll: '20px'
     },
     footer: {
@@ -220,7 +193,7 @@ const createRepairFlexMessage = (data, fallbackText) => {
           action: {
             type: 'uri',
             label: '查看詳情',
-            uri: 'https://cagoooo.github.io/repair/'
+            uri: detailUrl
           },
           style: 'primary',
           color: headerColor
@@ -230,7 +203,7 @@ const createRepairFlexMessage = (data, fallbackText) => {
   };
 
   // Add Hero Image if available
-  if (data.imageUrl) {
+  if (!isReminder && data.imageUrl) {
     bubble.hero = {
       type: 'image',
       url: data.imageUrl,
@@ -247,7 +220,7 @@ const createRepairFlexMessage = (data, fallbackText) => {
 
   return {
     type: 'flex',
-    altText: fallbackText,
+    altText: fallbackText.substring(0, 390),
     contents: bubble
   };
 };
