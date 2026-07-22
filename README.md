@@ -4,7 +4,8 @@
 
 ## 🌟 功能特色
 
-- **AI 自動辨識地圖**：整合 Google Vision API，一鍵辨識教室編號與名稱。
+- **AI 自動辨識地圖**：清晰圖片優先、PDF 可選，透過受權限與額度保護的 Google Vision 後端辨識教室編號與名稱。
+- **新學期安全換版**：以固定教室編號銜接報修歷史，套用前顯示差異並自動備份舊配置。
 - **智慧名稱聚合**：獨家遞迴連鎖演算法，能精準抓取分散的班級文字。
 - **專業級標籤排版**：編號與名稱垂直堆疊，支援小空間溢出顯示，極具美感。
 - **互動式地圖報修**：直觀點擊教室即可報修。
@@ -26,7 +27,7 @@ npm install
 
 ### 2. 設定環境變數
 
-請複製 `.env.example` 為 `.env` 並填入您的 Firebase 與 Google Cloud 設定：
+請複製 `.env.example` 為 `.env` 並填入 Firebase 前端設定。Vision 憑證由 Cloud Functions 的服務帳號管理，不可放進前端環境變數：
 
 ```ini
 # Firebase Config
@@ -36,9 +37,6 @@ VITE_FIREBASE_PROJECT_ID=your_project_id
 VITE_FIREBASE_STORAGE_BUCKET=your_bucket.appspot.com
 VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 VITE_FIREBASE_APP_ID=your_app_id
-
-# Google Cloud Vision API Key (For AI Detection)
-VITE_GOOGLE_VISION_API_KEY=your_vision_api_key
 ```
 
 ### 3. 以開發模式執行
@@ -51,6 +49,12 @@ npm run dev
 
 ```bash
 npm run build
+```
+
+### 5. 部署地圖 OCR 後端
+
+```bash
+firebase deploy --only functions:repair-map --project=smes-e1dc3 --account=ipad@mail2.smes.tyc.edu.tw
 ```
 
 ## 🛠️ 技術堆疊

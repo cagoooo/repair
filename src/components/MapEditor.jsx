@@ -2,6 +2,12 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { SHIMEN_ELEMENTARY_TEMPLATE, SHIMEN_KINDERGARTEN_TEMPLATE, AVAILABLE_TEMPLATES } from '../data/roomTemplates';
 import { detectRoomsFromImage, convertPixelToPercent } from '../services/visionService';
+import { imageSourceToOcrData } from '../services/mapFileService';
+import {
+    getRoomDisplayName,
+    mergeRoomsByCode,
+    normalizeRoomCode
+} from '../services/roomConfigService';
 import './MapEditor.css';
 
 /**
@@ -9,7 +15,7 @@ import './MapEditor.css';
  * 允許使用者在上傳的教室配置圖上框選教室區域
  * 支援自動辨識功能一鍵載入預設模板
  */
-const MapEditor = ({ imageUrl, rooms = [], onSave, onClose, onRoomsChange }) => {
+const MapEditor = ({ imageUrl, ocrImageUrl, rooms = [], onSave, onClose, onRoomsChange }) => {
     const [isDrawing, setIsDrawing] = useState(false);
     const [startPos, setStartPos] = useState(null);
     const [currentRect, setCurrentRect] = useState(null);
@@ -17,7 +23,7 @@ const MapEditor = ({ imageUrl, rooms = [], onSave, onClose, onRoomsChange }) => 
     const [editingRoom, setEditingRoom] = useState(null);
     const [isAutoDetecting, setIsAutoDetecting] = useState(false);
     const [showAutoDetectSuccess, setShowAutoDetectSuccess] = useState(false);
-    const [showTemplateMenu, setShowTemplateMenu] = useState(false);
+    const [importPreview, setImportPreview] = useState(null);
 
     // 校正模式狀態
     const [showCalibration, setShowCalibration] = useState(false);
@@ -164,21 +170,13 @@ const MapEditor = ({ imageUrl, rooms = [], onSave, onClose, onRoomsChange }) => 
     };
 
     const handleAutoDetect = async (template = SHIMEN_ELEMENTARY_TEMPLATE) => {
-        setShowTemplateMenu(false);
         setIsAutoDetecting(true);
         await new Promise(resolve => setTimeout(resolve, 1500));
 
-        const templateRooms = template.rooms.map(room => ({
-            ...room,
-            id: `${room.id}_${Date.now()}`
-        }));
-
-        onRoomsChange(templateRooms);
+        const preview = mergeRoomsByCode(rooms, template.rooms);
+        setImportPreview(preview);
         setIsAutoDetecting(false);
         setShowAutoDetectSuccess(true);
-        setShowCalibration(true);
-        setCalibrationStep(1); // Auto-start 3-point calibration
-        setCalibrationClicks([]);
         setTimeout(() => setShowAutoDetectSuccess(false), 3000);
     };
 
@@ -186,31 +184,23 @@ const MapEditor = ({ imageUrl, rooms = [], onSave, onClose, onRoomsChange }) => 
      * 使用 AI Vision 進行全自動辨識
      */
     const handleAIVisionScan = async () => {
-        if (!imageRef.current) return;
+        if (!imageUrl) return;
 
         setIsAutoDetecting(true);
         try {
-            // 1. 將圖片轉換為 Base64
-            const canvas = document.createElement('canvas');
-            const img = imageRef.current;
-            canvas.width = img.naturalWidth;
-            canvas.height = img.naturalHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0);
-
-            // 取得 Base64 (不含 header)
-            const base64Data = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+            // 從本地 PDF 轉圖或安全下載 Blob，避免跨來源圖片污染 Canvas。
+            const imageData = await imageSourceToOcrData(ocrImageUrl || imageUrl);
 
             // 2. 呼叫 Vision API
-            const rawRooms = await detectRoomsFromImage(base64Data);
+            const rawRooms = await detectRoomsFromImage(imageData.base64);
 
             // 3. 座標轉換 (像素 -> %)
-            const processedRooms = convertPixelToPercent(rawRooms, img.naturalWidth, img.naturalHeight);
+            const processedRooms = convertPixelToPercent(rawRooms, imageData.width, imageData.height);
 
             if (processedRooms.length === 0) {
                 alert('AI 未能辨識出任何教室，請確認圖片文字是否清晰。');
             } else {
-                onRoomsChange(processedRooms);
+                setImportPreview(mergeRoomsByCode(rooms, processedRooms));
                 setShowAutoDetectSuccess(true);
                 setTimeout(() => setShowAutoDetectSuccess(false), 3000);
             }
@@ -246,6 +236,15 @@ const MapEditor = ({ imageUrl, rooms = [], onSave, onClose, onRoomsChange }) => 
             onRoomsChange([]);
             setSelectedRoom(null);
         }
+    };
+
+    const handleApplyImport = () => {
+        if (!importPreview?.canApply) return;
+        onRoomsChange(importPreview.mergedRooms);
+        setImportPreview(null);
+        setShowCalibration(true);
+        setCalibrationStep(0);
+        setCalibrationClicks([]);
     };
 
     // Canvas Event Handlers
@@ -358,9 +357,25 @@ const MapEditor = ({ imageUrl, rooms = [], onSave, onClose, onRoomsChange }) => 
 
     const handleSaveRoom = () => {
         if (!editingRoom || !editingRoom.name) return;
-        const updatedRooms = [...rooms, editingRoom];
+        const code = normalizeRoomCode(editingRoom.code);
+        if (!code) {
+            alert('請填寫教室編號');
+            return;
+        }
+        const duplicate = rooms.some(room => room.id !== editingRoom.id && normalizeRoomCode(room.code) === code);
+        if (duplicate) {
+            alert(`教室編號 ${code} 已存在，請勿重複建立。`);
+            return;
+        }
+
+        const savedRoom = { ...editingRoom, code };
+        delete savedRoom._isExisting;
+        const updatedRooms = editingRoom._isExisting
+            ? rooms.map(room => room.id === editingRoom.id ? savedRoom : room)
+            : [...rooms, savedRoom];
         onRoomsChange(updatedRooms);
         setEditingRoom(null);
+        setSelectedRoom(savedRoom);
     };
 
     const handleDeleteRoom = (roomId) => {
@@ -785,6 +800,9 @@ const MapEditor = ({ imageUrl, rooms = [], onSave, onClose, onRoomsChange }) => 
                                         )}
                                     </button>
                                 </div>
+                                <span className="vision-usage-note">
+                                    AI 辨識會消耗學校 API 額度，請確認圖片後再執行；每位管理員每小時最多 5 次。
+                                </span>
                                 {rooms.length > 0 && (
                                     <button className="btn btn-secondary" onClick={() => setShowCalibration(true)}>
                                         📐 校正位置
@@ -826,6 +844,76 @@ const MapEditor = ({ imageUrl, rooms = [], onSave, onClose, onRoomsChange }) => 
                         )}
                     </div>
                 </div>
+
+                {importPreview && (
+                    <div className="map-import-review" role="dialog" aria-modal="true" aria-labelledby="map-import-title">
+                        <div className="map-import-review-card glass-card">
+                            <div className="map-import-review-header">
+                                <div>
+                                    <h3 id="map-import-title">🔎 新舊教室配置比對</h3>
+                                    <p>辨識結果尚未套用，請先確認差異。</p>
+                                </div>
+                                <button className="btn btn-secondary" onClick={() => setImportPreview(null)}>取消匯入</button>
+                            </div>
+
+                            <div className="map-import-summary">
+                                <span className="updated">名稱／位置變更 <strong>{importPreview.updated.length}</strong></span>
+                                <span className="added">新增 <strong>{importPreview.added.length}</strong></span>
+                                <span className="preserved">未辨識但保留 <strong>{importPreview.preserved.length}</strong></span>
+                                <span>不變 <strong>{importPreview.unchanged.length}</strong></span>
+                            </div>
+
+                            {importPreview.duplicateDetectedCodes.length > 0 && (
+                                <div className="map-import-error">
+                                    重複教室編號：{importPreview.duplicateDetectedCodes.join('、')}
+                                </div>
+                            )}
+
+                            <div className="map-import-table-wrap">
+                                <table className="map-import-table">
+                                    <thead>
+                                        <tr><th>狀態</th><th>編號</th><th>原名稱</th><th>新名稱</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {importPreview.updated.map(change => (
+                                            <tr key={`updated-${change.code}`}>
+                                                <td><span className="change-badge updated">變更</span></td>
+                                                <td>{change.code}</td>
+                                                <td>{getRoomDisplayName(change.before) || '—'}</td>
+                                                <td>{getRoomDisplayName(change.after) || '—'}</td>
+                                            </tr>
+                                        ))}
+                                        {importPreview.added.map(room => (
+                                            <tr key={`added-${room.code}`}>
+                                                <td><span className="change-badge added">新增</span></td>
+                                                <td>{room.code}</td>
+                                                <td>—</td>
+                                                <td>{getRoomDisplayName(room) || '—'}</td>
+                                            </tr>
+                                        ))}
+                                        {importPreview.preserved.map(room => (
+                                            <tr key={`preserved-${room.code}`}>
+                                                <td><span className="change-badge preserved">保留</span></td>
+                                                <td>{room.code}</td>
+                                                <td>{getRoomDisplayName(room) || '—'}</td>
+                                                <td>OCR 未辨識，沿用原資料</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div className="map-import-actions">
+                                <p>套用後仍須按「儲存設定」才會更新雲端，儲存前會自動備份舊版本。</p>
+                                <button
+                                    className="btn btn-primary"
+                                    disabled={!importPreview.canApply}
+                                    onClick={handleApplyImport}
+                                >✅ 套用比對結果（共 {importPreview.mergedRooms.length} 間）</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
 
                 {showCalibration && (
@@ -954,6 +1042,7 @@ const MapEditor = ({ imageUrl, rooms = [], onSave, onClose, onRoomsChange }) => 
                         <img
                             ref={imageRef}
                             src={imageUrl}
+                            crossOrigin="anonymous"
                             alt="教室配置圖"
                             className="map-editor-image"
                             style={{
@@ -1129,7 +1218,7 @@ const MapEditor = ({ imageUrl, rooms = [], onSave, onClose, onRoomsChange }) => 
 
                 {editingRoom && !showCalibration && (
                     <div className="room-edit-form glass-card">
-                        <h3>📍 新增教室</h3>
+                        <h3>📍 {editingRoom._isExisting ? '編輯教室' : '新增教室'}</h3>
                         <div className="form-group">
                             <label className="form-label">教室編號</label>
                             <input
@@ -1166,7 +1255,7 @@ const MapEditor = ({ imageUrl, rooms = [], onSave, onClose, onRoomsChange }) => 
                         </div>
                         <div className="form-actions">
                             <button className="btn btn-primary" onClick={handleSaveRoom}>
-                                ✓ 儲存
+                                ✓ {editingRoom._isExisting ? '更新' : '儲存'}
                             </button>
                             <button className="btn btn-secondary" onClick={() => setEditingRoom(null)}>
                                 取消
@@ -1180,6 +1269,12 @@ const MapEditor = ({ imageUrl, rooms = [], onSave, onClose, onRoomsChange }) => 
                         <h3>📍 {selectedRoom.code} - {selectedRoom.name && selectedRoom.name.startsWith(selectedRoom.code) ? selectedRoom.name.slice(selectedRoom.code.length).trim() : selectedRoom.name}</h3>
                         <p className="room-category">類型：{selectedRoom.category}</p>
                         <div className="form-actions">
+                            <button
+                                className="btn btn-primary"
+                                onClick={() => setEditingRoom({ ...selectedRoom, _isExisting: true })}
+                            >
+                                ✏️ 編輯名稱
+                            </button>
                             <button
                                 className="btn btn-danger"
                                 onClick={() => handleDeleteRoom(selectedRoom.id)}

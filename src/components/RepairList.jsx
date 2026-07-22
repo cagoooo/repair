@@ -636,7 +636,7 @@ function RepairList({
 
                                 {/* 卡片頂部 - 點擊展開 */}
                                 <div className="repair-card-header" onClick={() => setExpandedId(isExpanded ? null : repair.id)}>
-                                    <div className="repair-room-badge" onClick={(e) => { e.stopPropagation(); onViewRoom(repair.roomId); }}>
+                                    <div className="repair-room-badge" onClick={(e) => { e.stopPropagation(); onViewRoom(repair); }}>
                                         <span className="room-code">{repair.roomCode}</span>
                                         <span className="room-name">{repair.roomName}</span>
                                     </div>

@@ -1,7 +1,5 @@
-import axios from 'axios';
-
-const VISION_API_URL = 'https://vision.googleapis.com/v1/images:annotate';
-const API_KEY = import.meta.env.VITE_GOOGLE_VISION_API_KEY;
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../firebase';
 
 /**
  * 使用 Google Vision API 辨識圖片中的文字，並轉換為教室區塊
@@ -9,27 +7,23 @@ const API_KEY = import.meta.env.VITE_GOOGLE_VISION_API_KEY;
  * @returns {Promise<Array>} - 辨識出的教室列表
  */
 export const detectRoomsFromImage = async (base64Image) => {
-    if (!API_KEY) {
-        throw new Error('Google Vision API Key 未設定');
-    }
+    if (!functions) throw new Error('Firebase Functions 尚未初始化');
 
     try {
-        const response = await axios.post(`${VISION_API_URL}?key=${API_KEY}`, {
-            requests: [
-                {
-                    image: { content: base64Image },
-                    features: [{ type: 'TEXT_DETECTION' }]
-                }
-            ]
-        });
+        const detectMapRooms = httpsCallable(functions, 'repair_detectMapRooms');
+        const response = await detectMapRooms({ base64Image });
+        return parseVisionAnnotations(response.data?.textAnnotations || []);
+    } catch (error) {
+        console.error('Vision API Error:', error);
+        throw new Error(error.message || 'AI 辨識服務暫時無法使用');
+    }
+};
 
-        const annotations = response.data.responses[0]?.textAnnotations;
-        if (!annotations || annotations.length === 0) {
-            return [];
-        }
+export const parseVisionAnnotations = (annotations = []) => {
+        if (annotations.length === 0) return [];
 
         // 第一個 annotation 是完整文字，後續是個別單字/區塊
-        const blocks = annotations.slice(1).map((ann, index) => {
+        const blocks = annotations.slice(1).map((ann) => {
             const text = ann.description.trim();
             const vertices = ann.boundingPoly.vertices;
             const x = Math.min(...vertices.map(v => v.x || 0));
@@ -202,10 +196,6 @@ export const detectRoomsFromImage = async (base64Image) => {
         }
 
         return mergedRooms;
-    } catch (error) {
-        console.error('Vision API Error:', error);
-        throw error;
-    }
 };
 
 /**

@@ -1,5 +1,5 @@
 // Service Worker — 快取策略：Network First + 靜態資源快取
-const BUILD_VERSION = '0.10.2';
+const BUILD_VERSION = '0.11.0';
 const CACHE_NAME = `repair-v${BUILD_VERSION}`;
 const STATIC_ASSETS = [
     './',

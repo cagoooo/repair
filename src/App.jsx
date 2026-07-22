@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import InteractiveMap from './components/InteractiveMap';
 import MapLoadingIndicator from './components/MapLoadingIndicator';
 import MapEditor from './components/MapEditor';
 import MapUploader from './components/MapUploader';
+import MapVersionHistory from './components/MapVersionHistory';
 import RepairForm from './components/RepairForm';
 import RoomActionModal from './components/RoomActionModal';
 import RepairList from './components/RepairList';
@@ -31,6 +32,8 @@ import {
 } from 'firebase/firestore';
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { sendLineNotification } from './services/notificationService';
+import { saveMapConfigWithBackup } from './services/mapConfigService';
+import { resolveRoom } from './services/roomConfigService';
 import { getPendingUploads, removePendingUpload } from './utils/offlineDB';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from './firebase';
@@ -43,6 +46,11 @@ function App() {
   // 狀態
   const [activeTab, setActiveTab] = useState('map');
   const [mapImage, setMapImage] = useState(null);
+  const [mapOcrImage, setMapOcrImage] = useState(null);
+  const [mapSource, setMapSource] = useState({});
+  const [mapRevision, setMapRevision] = useState(0);
+  const [academicYear, setAcademicYear] = useState('');
+  const mapEditorBackupRef = useRef(null);
   const [rooms, setRooms] = useState([]);
   const [rawRepairs, setRawRepairs] = useState([]); // [MODIFY] Rename to rawRepairs
   const [myRepairIds, setMyRepairIds] = useState(() => { // [NEW] Lift local storage state
@@ -55,6 +63,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isMapLoading, setIsMapLoading] = useState(true); // 地圖資料載入中
   const [showEditor, setShowEditor] = useState(false);
+  const [showMapVersions, setShowMapVersions] = useState(false);
   const [showRepairForm, setShowRepairForm] = useState(false);
   // 管理員檢視角色: 'IT' | 'GENERAL' | 'ALL' | null(未選)
   const [adminRole, setAdminRole] = useState(() => localStorage.getItem('admin_role') || null);
@@ -404,6 +413,9 @@ function App() {
           if (data.mapImageUrl) setMapImage(data.mapImageUrl);
           else if (data.mapImage) setMapImage(data.mapImage);
           if (data.rooms) setRooms(data.rooms);
+          setMapSource(data.source || {});
+          setMapRevision(Number(data.revision || 0));
+          setAcademicYear(data.academicYear || '');
           console.log('已從雲端載入地圖設定');
         } else {
           // 2. 如果雲端沒資料或沒連線，嘗試本地儲存
@@ -548,14 +560,54 @@ function App() {
 
 
   // 處理地圖上傳
-  const handleMapUpload = (imageData, fileName) => {
+  const openMapEditor = () => {
+    mapEditorBackupRef.current = {
+      mapImage,
+      mapOcrImage,
+      mapSource,
+      academicYear,
+      rooms: rooms.map(room => ({ ...room, bounds: { ...room.bounds } }))
+    };
+    setShowEditor(true);
+  };
+
+  const closeMapEditor = () => {
+    const backup = mapEditorBackupRef.current;
+    if (backup) {
+      setMapImage(backup.mapImage);
+      setMapOcrImage(backup.mapOcrImage);
+      setMapSource(backup.mapSource);
+      setAcademicYear(backup.academicYear);
+      setRooms(backup.rooms);
+    }
+    mapEditorBackupRef.current = null;
+    setShowEditor(false);
+  };
+
+  const handleMapUpload = (imageData, fileName, metadata = {}) => {
     // 如果是初始設定 (showSetup === true)，允許上傳
     // 否則必須是管理員
     if (!showSetup && !isAdmin) {
       toast.warning('權限不足：僅管理員可更換地圖');
       return;
     }
+    if (!mapEditorBackupRef.current) {
+      mapEditorBackupRef.current = {
+        mapImage,
+        mapOcrImage,
+        mapSource,
+        academicYear,
+        rooms: rooms.map(room => ({ ...room, bounds: { ...room.bounds } }))
+      };
+    }
     setMapImage(imageData);
+    setMapOcrImage(metadata.ocrDataUrl || imageData);
+    const sourceMetadata = { ...metadata };
+    delete sourceMetadata.ocrDataUrl;
+    setMapSource({
+      ...sourceMetadata,
+      sourceFileName: sourceMetadata.sourceFileName || fileName
+    });
     setShowSetup(false);
     // 上傳新地圖後開啟編輯器
     setTimeout(() => setShowEditor(true), 300);
@@ -579,7 +631,8 @@ function App() {
     try {
       const configData = {
         rooms: newRooms,
-        updatedAt: new Date().toISOString()
+        academicYear,
+        source: mapSource
       };
       // 如果 mapImage 是 URL（非 base64），存為 mapImageUrl
       if (mapImage && !mapImage.startsWith('data:')) {
@@ -587,8 +640,19 @@ function App() {
       } else if (mapImage) {
         configData.mapImage = mapImage;
       }
-      await setDoc(doc(db, 'system', 'mapConfig'), configData);
-      toast.success('地圖設定已儲存到雲端！所有使用者重整後皆可看到新配置。');
+      const result = await saveMapConfigWithBackup(db, configData, {
+        actorEmail: user?.email || '',
+        reason: `套用${academicYear ? ` ${academicYear}` : ''}教室配置`
+      });
+      setMapRevision(result.revision);
+      mapEditorBackupRef.current = {
+        mapImage,
+        mapOcrImage,
+        mapSource,
+        academicYear,
+        rooms: newRooms.map(room => ({ ...room, bounds: { ...room.bounds } }))
+      };
+      toast.success(`地圖設定已儲存並建立舊版備份（版本 ${result.revision}）！`);
     } catch (error) {
       console.error('儲存失敗:', error);
       toast.error('儲存失敗：' + error.message);
@@ -883,7 +947,7 @@ function App() {
   // 回到乾淨的地圖主畫面，並關閉可能仍開啟的操作介面
   const handleGoToMap = () => {
     setActiveTab('map');
-    setShowEditor(false);
+    closeMapEditor();
     setShowRepairForm(false);
     setSelectedRoom(null);
     setRoomActionRoom(null);
@@ -992,7 +1056,7 @@ function App() {
                   rooms={rooms}
                   repairs={repairs}
                   onRoomClick={handleRoomClick}
-                  onEditMap={isAdmin ? () => setShowEditor(true) : undefined}
+                  onEditMap={isAdmin ? openMapEditor : undefined}
                 />
 
                 <div className="hint-banner info">
@@ -1032,8 +1096,8 @@ function App() {
                 onConsumePresetSearch={() => setListPresetSearch('')}
                 adminRole={isAdmin ? adminRole : null}
                 onSwitchRole={isAdmin ? () => setShowRoleSelector(true) : null}
-                onViewRoom={(roomId) => {
-                  const room = rooms.find(r => r.id === roomId);
+                onViewRoom={(roomReference) => {
+                  const room = resolveRoom(rooms, roomReference);
                   if (room) setSelectedRoom(room);
                   setActiveTab('map');
                 }}
@@ -1384,10 +1448,32 @@ function App() {
               {isAdmin && (
                 <div className="settings-card map-config-card full-width">
                   <div className="card-header flex-between">
-                    <h3>🗺️ 教室配置圖 (Admin)</h3>
-                    <button className="btn btn-sm btn-secondary" onClick={() => setShowEditor(true)}>
-                      ✏️ 編輯區域 ({rooms.length})
-                    </button>
+                    <div>
+                      <h3>🗺️ 教室配置圖 (Admin)</h3>
+                      <p className="text-muted" style={{ margin: '4px 0 0' }}>
+                        {academicYear || '尚未標記學年度'} · 配置版本 {mapRevision || '舊版'}
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <button className="btn btn-sm btn-secondary" onClick={() => setShowMapVersions(true)}>
+                        🕘 歷史版本
+                      </button>
+                      <button className="btn btn-sm btn-secondary" onClick={openMapEditor}>
+                        ✏️ 編輯區域 ({rooms.length})
+                      </button>
+                    </div>
+                  </div>
+                  <div className="form-group" style={{ margin: '12px 0' }}>
+                    <label className="form-label" htmlFor="map-academic-year">學年度／學期標籤</label>
+                    <input
+                      id="map-academic-year"
+                      className="form-input"
+                      type="text"
+                      value={academicYear}
+                      onChange={(event) => setAcademicYear(event.target.value)}
+                      placeholder="例如：新學年度第 1 學期"
+                      maxLength={30}
+                    />
                   </div>
                   <div className="map-preview-area">
                     <MapUploader onUpload={handleMapUpload} currentImage={mapImage} />
@@ -1423,12 +1509,22 @@ function App() {
       {showEditor && mapImage && (
         <MapEditor
           imageUrl={mapImage}
+          ocrImageUrl={mapOcrImage}
           rooms={rooms}
           onSave={handleSaveMapConfig}
-          onClose={() => setShowEditor(false)}
+          onClose={closeMapEditor}
           onRoomsChange={handleRoomsChange}
         />
       )}
+
+      <MapVersionHistory
+        db={db}
+        open={showMapVersions}
+        currentRevision={mapRevision}
+        actorEmail={user?.email || ''}
+        onClose={() => setShowMapVersions(false)}
+        onRestored={() => window.location.reload()}
+      />
 
       {/* 教室動作選擇（查看進度 / 新報修） */}
       {roomActionRoom && (

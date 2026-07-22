@@ -1,0 +1,16 @@
+{
+  "capturedAt": "2026-07-22T02:00:00.000Z",
+  "projectId": "smes-e1dc3",
+  "roomCount": 101,
+  "uniqueRoomCodes": 101,
+  "uniqueRoomIds": 101,
+  "repairCount": 48,
+  "unresolvedRepairCount": 0,
+  "manualRooms": [
+    {
+      "code": "C640",
+      "name": "幼兒園",
+      "reason": "現有 OCR 測試未辨識，換圖時必須保留或人工確認"
+    }
+  ]
+}

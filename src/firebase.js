@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
+import { getFunctions } from 'firebase/functions';
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -17,6 +18,7 @@ let app = null;
 let db = null;
 let auth = null;
 let storage = null;
+let functions = null;
 
 if (firebaseConfig.apiKey) {
     try {
@@ -31,6 +33,7 @@ if (firebaseConfig.apiKey) {
 
         auth = getAuth(app);
         storage = getStorage(app);
+        functions = getFunctions(app, 'us-central1');
     } catch (e) {
         console.error('Firebase initialization failed:', e);
     }
@@ -38,5 +41,5 @@ if (firebaseConfig.apiKey) {
     console.warn('⚠️ Firebase API Key not found. Running in local mode only.');
 }
 
-export { db, auth, storage };
+export { db, auth, storage, functions };
 export default app;
