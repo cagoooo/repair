@@ -15,8 +15,13 @@ initializeApp();
 setGlobalOptions({ region: 'us-central1', maxInstances: 3 });
 
 const db = getFirestore();
-const visionClient = new vision.ImageAnnotatorClient();
 const PRIMARY_ADMIN = 'ipad@mail2.smes.tyc.edu.tw';
+
+let visionClient;
+function getVisionClient() {
+  if (!visionClient) visionClient = new vision.ImageAnnotatorClient();
+  return visionClient;
+}
 
 async function assertRepairAdmin(auth) {
   if (!auth?.uid || !auth.token?.email) {
@@ -89,7 +94,7 @@ exports.repair_detectMapRooms = onCall({
   const startedAt = Date.now();
 
   try {
-    const [result] = await visionClient.textDetection({
+    const [result] = await getVisionClient().textDetection({
       image: { content: Buffer.from(validation.base64Image, 'base64') }
     });
     await usageRef.set({
