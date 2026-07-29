@@ -185,7 +185,9 @@ export function applyReviewDecisions(mergeResult, decisions = {}) {
     const item = reviewByCode.get(room.code);
     if (!item) return [room];
     const decision = decisions[room.code];
-    if (decision === 'hide') return [];
+    if (decision === 'hide') {
+      return [{ ...room, hidden: true, reviewStatus: 'hidden', reviewReasons: item.reasons }];
+    }
     if (decision === 'keep' && item.before) {
       return [{ ...item.before, reviewStatus: 'kept', reviewReasons: item.reasons }];
     }

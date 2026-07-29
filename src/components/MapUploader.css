@@ -195,3 +195,19 @@
         flex: 1 1 40%;
     }
 }
+
+.auto-rehearsal-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 12px;
+    padding: 11px 13px;
+    border: 1px solid rgba(96, 165, 250, .32);
+    border-radius: 10px;
+    background: rgba(30, 64, 175, .1);
+    cursor: pointer;
+}
+
+.auto-rehearsal-option input { margin-top: 4px; }
+.auto-rehearsal-option span { display: grid; gap: 2px; }
+.auto-rehearsal-option small { color: var(--text-secondary); line-height: 1.35; }

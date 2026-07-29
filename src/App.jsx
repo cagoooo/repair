@@ -34,6 +34,9 @@ const EMPTY_MAP_WORKFLOW = {
   ocrCompleted: false,
   differencesReviewed: false,
   calibrationConfirmed: false,
+  snapshotDownloaded: false,
+  autoRehearsal: false,
+  uploadToken: '',
   published: false,
   postChecked: false
 };
@@ -592,6 +595,7 @@ function App() {
         mapOcrImage,
         mapSource,
         academicYear,
+        mapRevision,
         rooms: rooms.map(room => ({ ...room, bounds: { ...room.bounds } }))
       };
       setMapWorkflow(EMPTY_MAP_WORKFLOW);
@@ -630,6 +634,7 @@ function App() {
         mapOcrImage,
         mapSource,
         academicYear,
+        mapRevision,
         rooms: rooms.map(room => ({ ...room, bounds: { ...room.bounds } }))
       };
     }
@@ -645,7 +650,9 @@ function App() {
       ...EMPTY_MAP_WORKFLOW,
       updateMode: true,
       dirty: true,
-      imageUploaded: true
+      imageUploaded: true,
+      autoRehearsal: Boolean(metadata.autoRehearsal),
+      uploadToken: `${Date.now()}-${fileName}`
     });
     setShowSetup(false);
     // 上傳新地圖後開啟編輯器
@@ -707,6 +714,7 @@ function App() {
         mapOcrImage,
         mapSource,
         academicYear,
+        mapRevision: result.revision,
         rooms: newRooms.map(room => ({ ...room, bounds: { ...room.bounds } }))
       };
       setMapWorkflow(current => ({ ...current, published: true, dirty: false }));
@@ -1590,12 +1598,19 @@ function App() {
             setMapWorkflow(current => ({ ...current, dirty: true }));
           }}
           baselineRooms={mapEditorBackupRef.current?.rooms || []}
+          baselineImageUrl={mapEditorBackupRef.current?.mapImage || ''}
+          baselineAcademicYear={mapEditorBackupRef.current?.academicYear || ''}
+          baselineRevision={mapEditorBackupRef.current?.mapRevision || 0}
+          currentRevision={mapRevision}
           repairs={repairs}
           baselineSource={mapEditorBackupRef.current?.mapSource || {}}
           source={mapSource}
           workflow={mapWorkflow}
           onWorkflowChange={handleMapWorkflowChange}
           updateMode={mapWorkflow.updateMode}
+          autoStartOcr={mapWorkflow.autoRehearsal}
+          uploadToken={mapWorkflow.uploadToken}
+          userEmail={user?.email || ''}
         />
       )}
 

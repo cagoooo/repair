@@ -754,6 +754,25 @@
 .map-editor-workflow > label { font-weight: 700; }
 .map-editor-workflow .map-update-stepper { grid-column: 1 / -1; width: 100%; }
 
+.batch-selection-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 16px;
+    overflow-x: auto;
+    border-top: 1px solid rgba(148, 163, 184, .12);
+    border-bottom: 1px solid rgba(148, 163, 184, .12);
+    background: rgba(15, 23, 42, .45);
+}
+
+.batch-selection-toolbar strong { flex: 0 0 auto; }
+.batch-selection-toolbar .form-input { flex: 0 0 180px; padding: 7px 9px; }
+.batch-selection-toolbar button { flex: 0 0 auto; padding: 7px 9px; color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: 8px; background: transparent; cursor: pointer; }
+.batch-selection-toolbar button.primary { color: white; border-color: #60a5fa; background: #2563eb; }
+.batch-selection-toolbar button.warning { color: #fde68a; border-color: #f59e0b; }
+.batch-selection-toolbar button:disabled { opacity: .4; cursor: not-allowed; }
+.room-marker.hidden-room { opacity: .38; filter: grayscale(.7); border-style: dashed !important; }
+
 .map-review-queue-heading,
 .map-review-item,
 .map-review-decisions {

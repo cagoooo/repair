@@ -46,6 +46,12 @@ describe('roomConfigService', () => {
     expect(applied.rooms[0]).toMatchObject({ name: '舊班名', reviewStatus: 'kept' });
   });
 
+  it('暫不顯示會保留穩定教室資料與歷史關聯', () => {
+    const result = mergeRoomsByCode([], [room('C999', '新教室')]);
+    const applied = applyReviewDecisions(result, { C999: 'hide' });
+    expect(applied.rooms[0]).toMatchObject({ code: 'C999', hidden: true, reviewStatus: 'hidden' });
+  });
+
   it('OCR 未辨識的人工教室會保留而不是被刪除', () => {
     const current = [room('C112', '二年甲班'), room('C640', '幼兒園', 'room_manual')];
     const detected = [room('C112', '三年甲班', 'vision_new')];

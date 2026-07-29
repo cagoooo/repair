@@ -20,7 +20,8 @@ const readyInput = () => ({
     imageUploaded: true,
     ocrCompleted: true,
     differencesReviewed: true,
-    calibrationConfirmed: true
+    calibrationConfirmed: true,
+    snapshotDownloaded: true
   },
   updateMode: true,
   acknowledgedWarnings: []

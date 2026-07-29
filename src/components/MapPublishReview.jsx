@@ -1,6 +1,6 @@
 import './MapPublishReview.css';
 
-function MapPublishReview({ report, acknowledgedWarnings, onToggleWarning, onClose, onPublish, onDownload, publishing }) {
+function MapPublishReview({ report, acknowledgedWarnings, onToggleWarning, onClose, onPublish, onDownload, onDownloadSnapshot, publishing }) {
   if (!report) return null;
   const warningSet = new Set(acknowledgedWarnings);
 
@@ -47,7 +47,10 @@ function MapPublishReview({ report, acknowledgedWarnings, onToggleWarning, onClo
         )}
 
         <footer>
-          <button className="btn btn-secondary" onClick={onDownload}>📄 下載演練報告（不發布）</button>
+          <div className="publish-download-actions">
+            <button className="btn btn-secondary" onClick={onDownload}>📄 下載演練報告</button>
+            <button className="btn btn-secondary" onClick={onDownloadSnapshot}>💾 下載發布前完整快照</button>
+          </div>
           <div>
             {!report.canPublish && <span>請先修正錯誤並確認所有警告</span>}
             <button className="btn btn-primary" disabled={!report.canPublish || publishing} onClick={onPublish}>

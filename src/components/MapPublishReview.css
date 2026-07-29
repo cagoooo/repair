@@ -16,6 +16,7 @@
 .publish-issue label { flex: 0 0 auto; cursor: pointer; color: #fde68a; }
 .publish-review-card footer { padding-top: 16px; border-top: 1px solid rgba(148, 163, 184, .2); }
 .publish-review-card footer > div { display: flex; align-items: center; gap: 10px; }
+.publish-review-card footer .publish-download-actions { flex-wrap: wrap; }
 .publish-review-card footer span { max-width: 180px; color: #fca5a5; font-size: .78rem; }
 
 @media (max-width: 700px) {

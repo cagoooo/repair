@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import './InteractiveMap.css';
 
 /**
@@ -130,7 +130,7 @@ function InteractiveMap({ imageUrl, rooms, repairs, onRoomClick, onEditMap }) {
                         draggable={false}
                     />
 
-                    {rooms.map(room => {
+                    {rooms.filter(room => room.hidden !== true).map(room => {
                         const { status, count } = getRoomData(room);
                         const isSelected = selectedRoomId === room.id;
 

@@ -39,7 +39,8 @@ export function buildMapReadinessReport({
       ['imageUploaded', '尚未上傳新配置圖'],
       ['ocrCompleted', '尚未執行 AI 辨識'],
       ['differencesReviewed', '尚未確認新舊配置差異'],
-      ['calibrationConfirmed', '尚未確認教室框位置']
+      ['calibrationConfirmed', '尚未確認教室框位置'],
+      ['snapshotDownloaded', '尚未下載發布前完整快照']
     ];
     requiredSteps.forEach(([key, title]) => {
       if (!workflow[key]) issues.push(issue(`workflow-${key}`, 'error', title, '完成此步驟後才能正式發布。'));
@@ -65,6 +66,9 @@ export function buildMapReadinessReport({
       issues.push(issue(`bounds-${code}`, 'error', `${code} 教室框超出圖片`, '請將教室框完整移回配置圖範圍內。', { roomCode: code }));
     } else if (Number(bounds.width) < 0.5 || Number(bounds.height) < 0.5) {
       issues.push(issue(`small-${code}`, 'warning', `${code} 教室框異常過小`, '請確認不是誤畫或 OCR 產生的雜訊。', { roomCode: code }));
+    }
+    if (room.hidden === true) {
+      issues.push(issue(`hidden-${code}`, 'warning', `${code} 暫不顯示`, '此教室仍保留歷史關聯，但正式地圖不會顯示，請確認。', { roomCode: code }));
     }
   });
 

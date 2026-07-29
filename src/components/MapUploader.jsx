@@ -22,6 +22,7 @@ function MapUploader({ onUpload, currentImage }) {
     const [pdfPage, setPdfPage] = useState(1);
     const [pdfPreview, setPdfPreview] = useState(null);
     const [isRenderingPdf, setIsRenderingPdf] = useState(false);
+    const [autoRehearsal, setAutoRehearsal] = useState(() => localStorage.getItem('repair_auto_map_rehearsal') === 'true');
     const fileInputRef = useRef(null);
 
     useEffect(() => () => {
@@ -84,6 +85,7 @@ function MapUploader({ onUpload, currentImage }) {
 
                 onUpload(uploadedImage.downloadURL, imageName, {
                     ...metadata,
+                    autoRehearsal,
                     sourceFile: undefined,
                     sourceFilePath,
                     ...dimensions,
@@ -93,6 +95,7 @@ function MapUploader({ onUpload, currentImage }) {
                 console.warn('Firebase Storage 未啟用，使用本地 Data URL');
                 onUpload(ocrDataUrl, imageName, {
                     ...metadata,
+                    autoRehearsal,
                     sourceFile: undefined,
                     ...dimensions,
                     ocrDataUrl
@@ -257,6 +260,19 @@ function MapUploader({ onUpload, currentImage }) {
                 onChange={handleFileSelect}
                 style={{ display: 'none' }}
             />
+
+            <label className="auto-rehearsal-option">
+                <input
+                    type="checkbox"
+                    checked={autoRehearsal}
+                    onChange={event => {
+                        const enabled = event.target.checked;
+                        setAutoRehearsal(enabled);
+                        localStorage.setItem('repair_auto_map_rehearsal', String(enabled));
+                    }}
+                />
+                <span><strong>上傳後自動演練</strong><small>自動執行一次 OCR 並開啟差異報告，但絕不自動正式發布。</small></span>
+            </label>
 
             {error && (
                 <div className="upload-error">

@@ -1,0 +1,25 @@
+.map-comparison-overlay { position: fixed; inset: 0; z-index: 10040; display: grid; place-items: center; padding: 18px; background: rgba(2, 6, 23, .9); }
+.map-comparison-card { width: min(1320px, 98vw); max-height: 96vh; padding: 20px; overflow: auto; }
+.map-comparison-card header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.map-comparison-card h2, .map-comparison-card p, .comparison-canvas { margin: 0; }
+.map-comparison-card header p { color: var(--text-secondary); }
+.comparison-summary { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+.comparison-summary span { padding: 6px 10px; border: 1px solid currentColor; border-radius: 999px; font-size: .82rem; }
+.comparison-summary .added { color: #6ee7b7; } .comparison-summary .missing { color: #fca5a5; }
+.comparison-summary .moved { color: #fbbf24; } .comparison-summary .renamed { color: #c4b5fd; }
+.comparison-summary .visibility { color: #93c5fd; }
+.comparison-controls { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.comparison-controls button { padding: 7px 11px; color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: 8px; background: transparent; cursor: pointer; }
+.comparison-controls button.active { color: white; border-color: #60a5fa; background: #2563eb; }
+.comparison-controls label { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.comparison-side-by-side { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.comparison-canvas figcaption { margin-bottom: 7px; font-weight: 700; }
+.comparison-image-wrap, .comparison-overlay-canvas { position: relative; overflow: hidden; border: 1px solid var(--border-color); border-radius: 10px; background: white; }
+.comparison-image-wrap img, .comparison-overlay-canvas > img:first-child { display: block; width: 100%; height: auto; }
+.comparison-overlay-canvas > img:nth-child(2) { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; }
+.comparison-marker { position: absolute; z-index: 3; display: grid; place-items: center; min-width: 18px; min-height: 12px; color: white; border: 2px solid currentColor; background: rgba(15, 23, 42, .5); font-size: clamp(7px, .7vw, 11px); font-weight: 800; overflow: hidden; }
+.comparison-marker.added { color: #34d399; } .comparison-marker.missing { color: #f87171; }
+.comparison-marker.moved { color: #f59e0b; } .comparison-marker.renamed { color: #a78bfa; }
+.comparison-marker.visibility { color: #60a5fa; } .comparison-marker.unchanged { color: rgba(148, 163, 184, .38); border-width: 1px; }
+.comparison-marker.hidden-room { border-style: dashed; opacity: .5; }
+@media (max-width: 760px) { .comparison-side-by-side { grid-template-columns: 1fr; } .comparison-controls, .map-comparison-card header { align-items: stretch; flex-direction: column; } .comparison-controls label { margin-left: 0; } }

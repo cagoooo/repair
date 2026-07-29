@@ -10,8 +10,12 @@ import {
     normalizeRoomCode
 } from '../services/roomConfigService';
 import { buildMapReadinessReport, createRehearsalReport } from '../services/mapReadinessService';
+import { createMapBackupSnapshot, downloadJsonFile } from '../services/mapSnapshotService';
+import { selectRoomIds } from '../services/roomBatchService';
+import MapComparisonPanel from './MapComparisonPanel';
 import MapPublishReview from './MapPublishReview';
 import MapUpdateStepper from './MapUpdateStepper';
+import RoomBatchEditor from './RoomBatchEditor';
 import './MapEditor.css';
 
 /**
@@ -37,12 +41,19 @@ const MapEditor = ({
     academicYear = '',
     onAcademicYearChange = () => {},
     baselineRooms = [],
+    baselineImageUrl = '',
+    baselineAcademicYear = '',
+    baselineRevision = 0,
+    currentRevision = 0,
     repairs = [],
     baselineSource = {},
     source = {},
     workflow = {},
     onWorkflowChange = () => {},
-    updateMode = false
+    updateMode = false,
+    autoStartOcr = false,
+    uploadToken = '',
+    userEmail = ''
 }) => {
     const [isDrawing, setIsDrawing] = useState(false);
     const [startPos, setStartPos] = useState(null);
@@ -56,6 +67,11 @@ const MapEditor = ({
     const [acknowledgedWarnings, setAcknowledgedWarnings] = useState([]);
     const [publishReport, setPublishReport] = useState(null);
     const [isPublishing, setIsPublishing] = useState(false);
+    const [showComparison, setShowComparison] = useState(false);
+    const [showBatchEditor, setShowBatchEditor] = useState(false);
+    const [batchSearch, setBatchSearch] = useState('');
+    const [batchUndoRooms, setBatchUndoRooms] = useState(null);
+    const autoStartedForRef = useRef('');
 
     // 校正模式狀態
     const [showCalibration, setShowCalibration] = useState(false);
@@ -263,6 +279,15 @@ const MapEditor = ({
         }
     };
 
+    useEffect(() => {
+        if (!autoStartOcr || !updateMode || !uploadToken || autoStartedForRef.current === uploadToken) return;
+        autoStartedForRef.current = uploadToken;
+        onWorkflowChange({ autoRunStarted: true, dirty: true });
+        handleAIVisionScan();
+        // 每次上傳 token 只允許自動消耗一次 OCR 額度。
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [autoStartOcr, updateMode, uploadToken]);
+
     const applyCalibration = () => {
         const newRooms = rooms.map(room => ({
             ...room,
@@ -326,14 +351,14 @@ const MapEditor = ({
         onWorkflowChange({ differencesReviewed: true, calibrationConfirmed: false, dirty: true });
     };
 
-    const getReadinessReport = (warnings = acknowledgedWarnings) => buildMapReadinessReport({
+    const getReadinessReport = (warnings = acknowledgedWarnings, workflowState = workflow) => buildMapReadinessReport({
         academicYear,
         baselineRooms,
         rooms,
         repairs,
         baselineSource,
         source,
-        workflow,
+        workflow: workflowState,
         updateMode,
         unresolvedReviewItems: importPreview?.reviewItems?.filter(item => !reviewDecisions[item.code]) || [],
         acknowledgedWarnings: warnings
@@ -365,13 +390,23 @@ const MapEditor = ({
             unresolvedReviewItems: importPreview?.reviewItems?.filter(item => !reviewDecisions[item.code]) || [],
             acknowledgedWarnings
         });
-        const blob = new Blob([JSON.stringify(rehearsal, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `map-rehearsal-${academicYear || 'draft'}.json`;
-        link.click();
-        URL.revokeObjectURL(url);
+        downloadJsonFile(rehearsal, `map-rehearsal-${academicYear || 'draft'}.json`);
+    };
+
+    const handleDownloadSnapshot = () => {
+        const snapshot = createMapBackupSnapshot({
+            academicYear: baselineAcademicYear || academicYear,
+            revision: baselineRevision || currentRevision,
+            mapImage: baselineImageUrl || imageUrl,
+            source: baselineSource,
+            rooms: baselineRooms.length > 0 ? baselineRooms : rooms,
+            repairs,
+            createdBy: userEmail
+        });
+        downloadJsonFile(snapshot, `map-backup-r${snapshot.revision}-${snapshot.academicYear || 'current'}.json`);
+        const nextWorkflow = { ...workflow, snapshotDownloaded: true, dirty: true };
+        onWorkflowChange({ snapshotDownloaded: true, dirty: true });
+        setPublishReport(getReadinessReport(acknowledgedWarnings, nextWorkflow));
     };
 
     const handlePublish = async () => {
@@ -385,6 +420,27 @@ const MapEditor = ({
         } finally {
             setIsPublishing(false);
         }
+    };
+
+    const handleSelectByFilter = (filter) => {
+        const ids = selectRoomIds(rooms, filter, batchSearch);
+        setSelectedRoomIds(new Set(ids));
+        setSelectedRoom(null);
+    };
+
+    const handleApplyBatch = (nextRooms, affectedCount) => {
+        if (affectedCount <= 0) return;
+        setBatchUndoRooms(rooms.map(room => ({ ...room, bounds: { ...room.bounds } })));
+        onRoomsChange(nextRooms);
+        onWorkflowChange({ dirty: true });
+        setShowBatchEditor(false);
+    };
+
+    const handleUndoBatch = () => {
+        if (!batchUndoRooms) return;
+        onRoomsChange(batchUndoRooms);
+        setBatchUndoRooms(null);
+        onWorkflowChange({ dirty: true });
     };
 
     // Canvas Event Handlers
@@ -943,6 +999,9 @@ const MapEditor = ({
                                 <span className="vision-usage-note">
                                     AI 辨識會消耗學校 API 額度，請確認圖片後再執行；每位管理員每小時最多 5 次。
                                 </span>
+                                {updateMode && baselineImageUrl && (
+                                    <button className="btn btn-secondary" onClick={() => setShowComparison(true)}>🌓 新舊圖比較</button>
+                                )}
                                 {rooms.length > 0 && (
                                     <button className="btn btn-secondary" onClick={() => setShowCalibration(true)}>
                                         📐 校正位置
@@ -1003,6 +1062,27 @@ const MapEditor = ({
                             onChange={event => onAcademicYearChange(event.target.value)}
                         />
                         <MapUpdateStepper academicYear={academicYear} workflow={workflow} compact />
+                    </div>
+                )}
+
+                {!showCalibration && rooms.length > 0 && (
+                    <div className="batch-selection-toolbar">
+                        <strong>批次選取</strong>
+                        <input
+                            className="form-input"
+                            value={batchSearch}
+                            onChange={event => setBatchSearch(event.target.value)}
+                            onKeyDown={event => { if (event.key === 'Enter') handleSelectByFilter('search'); }}
+                            placeholder="搜尋編號或名稱"
+                        />
+                        <button onClick={() => handleSelectByFilter('search')} disabled={!batchSearch.trim()}>搜尋</button>
+                        <button onClick={() => handleSelectByFilter('low_confidence')}>低信心</button>
+                        <button onClick={() => handleSelectByFilter('review')}>有疑慮</button>
+                        <button onClick={() => handleSelectByFilter('hidden')}>已隱藏</button>
+                        <button onClick={() => handleSelectByFilter('all')}>全選</button>
+                        <button onClick={() => setSelectedRoomIds(new Set())}>清除選取</button>
+                        <button className="primary" disabled={selectedRoomIds.size === 0} onClick={() => setShowBatchEditor(true)}>批次編輯（{selectedRoomIds.size}）</button>
+                        {batchUndoRooms && <button className="warning" onClick={handleUndoBatch}>↶ 復原批次修改</button>}
                     </div>
                 )}
 
@@ -1302,7 +1382,7 @@ const MapEditor = ({
                             return (
                                 <div
                                     key={`${room.id}_${showCalibration ? 'c' : 'n'}`}
-                                    className={`room-marker ${isSelected ? 'selected' : ''} ${showCalibration ? 'calibrating' : ''} ${renderBounds.width < 3 || renderBounds.height < 3 ? 'small-room' : ''}`}
+                                    className={`room-marker ${isSelected ? 'selected' : ''} ${room.hidden ? 'hidden-room' : ''} ${showCalibration ? 'calibrating' : ''} ${renderBounds.width < 3 || renderBounds.height < 3 ? 'small-room' : ''}`}
                                     style={{
                                         left: `${renderBounds.x}%`,
                                         top: `${renderBounds.y}%`,
@@ -1508,7 +1588,23 @@ const MapEditor = ({
                     onClose={() => setPublishReport(null)}
                     onPublish={handlePublish}
                     onDownload={handleDownloadRehearsal}
+                    onDownloadSnapshot={handleDownloadSnapshot}
                     publishing={isPublishing}
+                />
+                <MapComparisonPanel
+                    open={showComparison}
+                    baselineImage={baselineImageUrl}
+                    image={imageUrl}
+                    baselineRooms={baselineRooms}
+                    rooms={rooms}
+                    onClose={() => setShowComparison(false)}
+                />
+                <RoomBatchEditor
+                    open={showBatchEditor}
+                    rooms={rooms}
+                    selectedIds={[...selectedRoomIds]}
+                    onApply={handleApplyBatch}
+                    onClose={() => setShowBatchEditor(false)}
                 />
             </div>
         </div >
