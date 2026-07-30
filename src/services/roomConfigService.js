@@ -106,7 +106,17 @@ function buildReviewItems({ updated, added, preserved, mergedRooms }) {
   return [...items.values()];
 }
 
-export function mergeRoomsByCode(currentRooms = [], detectedRooms = []) {
+/**
+ * 以固定教室編號合併新舊配置。
+ * @param {Array} currentRooms 目前正式配置
+ * @param {Array} detectedRooms 本次辨識結果
+ * @param {{preserveExistingBounds?: boolean}} options
+ *   preserveExistingBounds：沿用現有教室框位置，只更新名稱與分類。
+ *   OCR 產生的框只有「文字大小」，配置沒有實際變動的學年度若直接套用，
+ *   會把已人工校正好的框全部換成小框，反而需要重新校正上百間。
+ */
+export function mergeRoomsByCode(currentRooms = [], detectedRooms = [], options = {}) {
+  const { preserveExistingBounds = false } = options;
   const currentByCode = new Map();
   const detectedByCode = new Map();
   const duplicateDetectedCodes = [];
@@ -138,6 +148,9 @@ export function mergeRoomsByCode(currentRooms = [], detectedRooms = []) {
         id: existing.id || code,
         code
       };
+      if (preserveExistingBounds && hasValidBounds(existing.bounds)) {
+        merged.bounds = existing.bounds;
+      }
       mergedRooms.push(merged);
       (roomChanged(existing, merged) ? updated : unchanged).push({
         code,

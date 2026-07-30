@@ -63,6 +63,8 @@ const MapEditor = ({
     const [isAutoDetecting, setIsAutoDetecting] = useState(false);
     const [showAutoDetectSuccess, setShowAutoDetectSuccess] = useState(false);
     const [importPreview, setImportPreview] = useState(null);
+    const [detectedRoomsCache, setDetectedRoomsCache] = useState(null); // 供切換「沿用現有框位」時重算比對
+    const [preserveBounds, setPreserveBounds] = useState(true); // 預設沿用現有框位，避免誤刪已校正好的框
     const [reviewDecisions, setReviewDecisions] = useState({});
     const [acknowledgedWarnings, setAcknowledgedWarnings] = useState([]);
     const [publishReport, setPublishReport] = useState(null);
@@ -223,7 +225,8 @@ const MapEditor = ({
         setIsAutoDetecting(true);
         await new Promise(resolve => setTimeout(resolve, 1500));
 
-        const preview = mergeRoomsByCode(rooms, template.rooms);
+        const preview = mergeRoomsByCode(rooms, template.rooms, { preserveExistingBounds: preserveBounds });
+        setDetectedRoomsCache(template.rooms);
         setImportPreview(preview);
         setReviewDecisions({});
         onWorkflowChange({ differencesReviewed: false, calibrationConfirmed: false, dirty: true });
@@ -252,7 +255,8 @@ const MapEditor = ({
             if (processedRooms.length === 0) {
                 alert('AI 未能辨識出任何教室，請確認圖片文字是否清晰。');
             } else {
-                const preview = mergeRoomsByCode(rooms, processedRooms);
+                const preview = mergeRoomsByCode(rooms, processedRooms, { preserveExistingBounds: preserveBounds });
+                setDetectedRoomsCache(processedRooms);
                 setImportPreview(preview);
                 setReviewDecisions({});
                 onWorkflowChange({
@@ -318,6 +322,14 @@ const MapEditor = ({
 
     const handleReviewDecision = (code, decision) => {
         setReviewDecisions(current => ({ ...current, [code]: decision }));
+    };
+
+    // 切換「沿用現有框位」時就地重算比對；確認佇列的判定不受框位影響，因此保留已做的決定。
+    const handleTogglePreserveBounds = (next) => {
+        setPreserveBounds(next);
+        if (detectedRoomsCache) {
+            setImportPreview(mergeRoomsByCode(rooms, detectedRoomsCache, { preserveExistingBounds: next }));
+        }
     };
 
     const handleReviewRoomName = (code, name) => {
@@ -1105,6 +1117,22 @@ const MapEditor = ({
                                 <span className="preserved">未辨識但保留 <strong>{importPreview.preserved.length}</strong></span>
                                 <span>不變 <strong>{importPreview.unchanged.length}</strong></span>
                             </div>
+
+                            <label className="map-import-preserve">
+                                <input
+                                    type="checkbox"
+                                    checked={preserveBounds}
+                                    onChange={event => handleTogglePreserveBounds(event.target.checked)}
+                                />
+                                <span>
+                                    <strong>沿用現有教室框位置，只更新名稱與分類</strong>
+                                    <small>
+                                        辨識產生的框只有「文字大小」。若這學年度的教室配置沒有實際變動，
+                                        建議保持勾選，避免已校正好的框被換成小框而需要重新校正上百間。
+                                        配置真的有搬動時才取消勾選。
+                                    </small>
+                                </span>
+                            </label>
 
                             {importPreview.duplicateDetectedCodes.length > 0 && (
                                 <div className="map-import-error">

@@ -22,7 +22,7 @@ if (syncedServiceWorker === originalServiceWorker &&
 
 const versionPayload = `${JSON.stringify({
   version: packageVersion,
-  notes: '地圖提示不再重複顯示教室編號；配置圖 CORS 與校正縮放修正'
+  notes: '換版可沿用現有教室框位置，只更新名稱與分類，不必重新校正上百間'
 }, null, 2)}\n`;
 const currentVersionPayload = readFileSync(versionPath, 'utf8');
 
