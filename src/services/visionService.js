@@ -1,5 +1,6 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase';
+import { OFFICIAL_ROOMS_115_MAP } from '../data/officialRooms115';
 
 /**
  * 使用 Google Vision API 辨識圖片中的文字，並轉換為教室區塊
@@ -197,14 +198,18 @@ export const parseVisionAnnotations = (annotations = []) => {
                 };
             }
 
-            // 針對固定功能區域實施規則判定：
-            // W 開頭固定名稱為「廁所」、S 開頭固定名稱為「樓梯」，皆歸類為 utility (公共設施)
+            // 優先對照 115 學年度官方手動校正權威資料庫 (SSOT)
+            const officialRoom = OFFICIAL_ROOMS_115_MAP.get(anchor.text);
             let category = 'classroom';
-            if (/^W/i.test(anchor.text)) {
-                combinedName = '廁所';
+
+            if (officialRoom) {
+                combinedName = officialRoom.name.startsWith(anchor.text) ? officialRoom.name : `${anchor.text} ${officialRoom.name}`;
+                category = officialRoom.category;
+            } else if (/^W/i.test(anchor.text)) {
+                combinedName = `${anchor.text} 廁所`;
                 category = 'utility';
             } else if (/^S/i.test(anchor.text)) {
-                combinedName = '樓梯';
+                combinedName = `${anchor.text} 樓梯`;
                 category = 'utility';
             } else {
                 const textLower = combinedName.toLowerCase();
