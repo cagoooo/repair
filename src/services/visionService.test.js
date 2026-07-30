@@ -5,6 +5,7 @@ vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn() }));
 
 import { convertPixelToPercent, parseVisionAnnotations } from './visionService';
 import regressionSamples from '../../tests/fixtures/map-ocr-regression.json';
+import textLayer115 from '../../tests/fixtures/map-115-textlayer.json';
 
 const annotation = (description, x, y, width, height, confidence) => ({
   description,
@@ -75,5 +76,42 @@ describe('visionService parser', () => {
     expect(rooms).toHaveLength(1);
     expect(rooms[0].code).toBe('W301');
     expect(rooms[0].category).toBe('utility');
+  });
+});
+
+// 115 學年度實圖回歸基準（2026/07/30 離線演練建立）
+// 只鎖住「編號層」的保證：編號齊全、無重複、無空白、直排編號可還原。
+// 名稱聚合完整度目前為已知缺口，記錄於 docs/115-map-rehearsal-report-20260730.md，不在此鎖定。
+describe('115 學年度實圖文字層回歸', () => {
+  const rooms = parseVisionAnnotations(sampleAnnotations(textLayer115.words));
+  const codes = rooms.map(room => room.code);
+
+  it('辨識出全部 100 間有編號教室且沒有重複或空白編號', () => {
+    expect(rooms).toHaveLength(textLayer115.meta.expectedRoomCount);
+    expect(new Set(codes).size).toBe(textLayer115.meta.expectedRoomCount);
+    expect(codes.every(code => /^[CWS]\d{3}$/.test(code))).toBe(true);
+  });
+
+  it('還原全部直排廁所編號並歸類為 utility', () => {
+    textLayer115.meta.verticalToiletCodes.forEach(code => {
+      const room = rooms.find(item => item.code === code);
+      expect(room, `${code} 應被還原`).toBeTruthy();
+      expect(room.category).toBe('utility');
+    });
+  });
+
+  it('不會憑空生出圖上沒有的人工必查教室', () => {
+    expect(codes).not.toContain(textLayer115.meta.manualRoomAbsent);
+  });
+
+  it('換算後的座標全部落在圖片範圍內', () => {
+    const percent = convertPixelToPercent(rooms, textLayer115.meta.imageWidth, textLayer115.meta.imageHeight);
+    percent.forEach(room => {
+      const { x, y, width, height } = room.bounds;
+      expect(x).toBeGreaterThanOrEqual(0);
+      expect(y).toBeGreaterThanOrEqual(0);
+      expect(x + width).toBeLessThanOrEqual(100);
+      expect(y + height).toBeLessThanOrEqual(100);
+    });
   });
 });
