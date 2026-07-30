@@ -22,7 +22,7 @@ if (syncedServiceWorker === originalServiceWorker &&
 
 const versionPayload = `${JSON.stringify({
   version: packageVersion,
-  notes: '教室名稱聚合修正：保留班號與多行名稱，W／S 系列歸為公共設施'
+  notes: '校正模式可切換原始大小／適應螢幕，兩點定位不再因圖片過小無法點選'
 }, null, 2)}\n`;
 const currentVersionPayload = readFileSync(versionPath, 'utf8');
 

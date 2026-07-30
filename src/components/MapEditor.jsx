@@ -1034,18 +1034,19 @@ const MapEditor = ({
                                 }}>取消</button>
                             </div>
                         )}
+                        {/* 縮放切換在校正模式也必須可用：兩點定位需要放大才點得準，
+                            而 getRelativePosition 以圖片百分比計算，縮放不影響校正結果。 */}
+                        <button
+                            className={`btn btn-secondary ${isFitScreen ? 'btn-active' : ''}`}
+                            onClick={() => setIsFitScreen(!isFitScreen)}
+                            title={isFitScreen ? '切換為 1:1 原始大小，可捲動並精準點擊' : '切換為適應螢幕，一次看到整張圖'}
+                        >
+                            {isFitScreen ? '🔍 原始大小' : '📏 適應螢幕'}
+                        </button>
                         {!showCalibration && (
-                            <>
-                                <button
-                                    className={`btn btn-secondary ${isFitScreen ? 'btn-active' : ''}`}
-                                    onClick={() => setIsFitScreen(!isFitScreen)}
-                                >
-                                    {isFitScreen ? '🔍 原始大小' : '📏 適應螢幕'}
-                                </button>
-                                <button className="btn btn-secondary" onClick={onClose}>
-                                    ✕ 關閉
-                                </button>
-                            </>
+                            <button className="btn btn-secondary" onClick={onClose}>
+                                ✕ 關閉
+                            </button>
                         )}
                     </div>
                 </div>
