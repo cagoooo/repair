@@ -83,35 +83,85 @@ export const parseVisionAnnotations = (annotations = []) => {
         const anchors = blocks.filter(b => !b.used && roomRegex.test(b.text));
         const others = blocks.filter(b => !b.used && !roomRegex.test(b.text));
 
+        // --- 教室欄位推算 (Cell Estimation) ---
+        // 舊版用「文字開頭不能離代碼開頭超過半個代碼寬」來避免跨房間誤併（如「檔案室六年」），
+        // 但這條同時擋掉了同一行右側的班號（「一年」「1」「班」只拿到「一年」），
+        // 也讓第二行以下的名稱抓不到（「視聽器材室」只拿到「視聽器」）。
+        // 改為由同一橫列相鄰編號的間距推算每個編號所屬的欄位左右界，邊界落在兩個編號的中線，
+        // 既能吃到整個名稱，又能靠中線把隔壁教室的名稱擋在外面。
+        const centerY = block => block.pixelBounds.y + block.pixelBounds.height / 2;
+        const anchorCells = new Map();
+        anchors.forEach(anchor => {
+            const { x, width, height } = anchor.pixelBounds;
+            const sameRow = anchors.filter(other =>
+                other !== anchor && Math.abs(centerY(other) - centerY(anchor)) <= height);
+            const leftGaps = sameRow
+                .filter(other => other.pixelBounds.x < x)
+                .map(other => x - other.pixelBounds.x);
+            const rightGaps = sameRow
+                .filter(other => other.pixelBounds.x > x)
+                .map(other => other.pixelBounds.x - x);
+
+            anchorCells.set(anchor, {
+                left: x - (leftGaps.length ? Math.min(...leftGaps) / 2 : width * 1.5),
+                right: x + (rightGaps.length ? Math.min(...rightGaps) / 2 : width * 1.5)
+            });
+        });
+
+        // --- 名稱指派 ---
+        // 每個文字塊只歸屬於「同一欄、位於正下方且垂直距離最近」的編號。
+        // 名稱一律排在編號下方（含同一視覺行但基線略低的班號），所以不接受位於編號上方的文字。
+        // 依閱讀順序處理，讓同一行的後續片段可以延續前一片段的歸屬。
+        const neighborsByAnchor = new Map(anchors.map(anchor => [anchor, []]));
+        const sortedOthers = [...others].sort((a, b) =>
+            a.pixelBounds.y - b.pixelBounds.y || a.pixelBounds.x - b.pixelBounds.x);
+
+        sortedOthers.forEach(block => {
+            const blockLeft = block.pixelBounds.x;
+            let best = null;
+            let bestDy = Infinity;
+
+            anchors.forEach(anchor => {
+                const cell = anchorCells.get(anchor);
+                // 以「文字左緣」判斷歸屬。中文名稱常被切成多塊（「一年」+「1」+「班」、
+                // 「課照班」+「6B」），尾段的中心點可能越過欄位中線，但左緣仍在本欄內。
+                if (blockLeft < cell.left || blockLeft >= cell.right) return;
+
+                const anchorHeight = anchor.pixelBounds.height;
+                const dy = block.pixelBounds.y - anchor.pixelBounds.y;
+
+                // 名稱一律排在編號下方。下限排除與編號同一行的無關文字
+                // （例如夾在兩間教室之間、沒有編號的「川堂」）；
+                // 上限約三行，足以涵蓋兩行以上的名稱，又不會把下一個區塊的文字
+                // （例如「交材室」）吸進來。
+                const isBelow = dy >= anchorHeight * 0.8 && dy <= anchorHeight * 3.2;
+
+                // 例外：OCR 也可能把名稱切在與編號同一行的右側（如「C112 二年甲班」），
+                // 此時只接受緊鄰右側的文字，避免吃到隔壁教室。
+                const gapFromAnchor = blockLeft - (anchor.pixelBounds.x + anchor.pixelBounds.width);
+                const isInlineRight = Math.abs(dy) < anchorHeight * 0.8 &&
+                    gapFromAnchor > -anchorHeight && gapFromAnchor < anchorHeight * 1.5;
+
+                if (!isBelow && !isInlineRight) return;
+
+                if (dy < bestDy) {
+                    best = anchor;
+                    bestDy = dy;
+                }
+            });
+
+            if (best) {
+                block.used = true;
+                neighborsByAnchor.get(best).push(block);
+            }
+        });
+
         const finalRooms = [];
 
         anchors.forEach(anchor => {
             anchor.used = true;
 
-            // 定義搜尋範圍：寬度嚴格限縮，避免跨房間誤併
-            const thresholdY = anchor.pixelBounds.height * 1.5;
-            const thresholdX = anchor.pixelBounds.width * 1.2;
-
-            // 尋找鄰近文字（主要在下方或正右方）
-            const neighbors = others.filter(other => {
-                if (other.used) return false;
-
-                // 鐵律：如果文字本身符合房間編號格式，絕對不能被當作別人的「名稱」
-                if (roomRegex.test(other.text)) return false;
-
-                const dy = other.pixelBounds.y - (anchor.pixelBounds.y + anchor.pixelBounds.height);
-                const dx = Math.abs(other.pixelBounds.x - anchor.pixelBounds.x);
-
-                // 鐵律 2：限定水平對齊誤差，文字開頭不能離代碼開頭太遠 (解決「檔案室六年」)
-                if (dx > anchor.pixelBounds.width * 0.5) return false;
-                const isBelow = dy > -5 && dy < thresholdY && dx < thresholdX;
-
-                const dxRight = other.pixelBounds.x - (anchor.pixelBounds.x + anchor.pixelBounds.width);
-                const dyRight = Math.abs(other.pixelBounds.y - anchor.pixelBounds.y);
-                const isRight = dxRight > -5 && dxRight < thresholdX && dyRight < anchor.pixelBounds.height;
-
-                return isBelow || isRight;
-            });
+            const neighbors = neighborsByAnchor.get(anchor) || [];
 
             // 合併鄰近文字
             let combinedName = anchor.text;
@@ -148,11 +198,15 @@ export const parseVisionAnnotations = (annotations = []) => {
             }
 
             // 智能分類
+            // 優先序：公共設施 → 特殊教室 → 行政辦公 → 一般教室。
+            // 特殊教室要先於行政辦公判斷，否則「視聽器材室」「音樂教室」這類名稱
+            // 會因為含有「室」而被誤判成行政辦公空間。
             let category = 'classroom';
             const textLower = combinedName.toLowerCase();
-            if (anchor.text.startsWith('W') || textLower.includes('廁') || textLower.includes('衛')) category = 'utility';
-            else if (textLower.includes('辦公') || textLower.includes('處') || textLower.includes('室')) category = 'office';
+            // W 系列為廁所、S 系列為樓梯間，皆屬公共設施而非教室
+            if (/^[WS]/.test(anchor.text) || textLower.includes('廁') || textLower.includes('衛') || textLower.includes('樓梯')) category = 'utility';
             else if (textLower.includes('圖書') || textLower.includes('音') || textLower.includes('藝') || textLower.includes('禮堂') || textLower.includes('器材')) category = 'special';
+            else if (textLower.includes('辦公') || textLower.includes('處') || textLower.includes('室')) category = 'office';
 
             finalRooms.push({
                 id: `vision_${Date.now()}_${finalRooms.length}`,
