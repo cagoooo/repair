@@ -22,7 +22,7 @@ if (syncedServiceWorker === originalServiceWorker &&
 
 const versionPayload = `${JSON.stringify({
   version: packageVersion,
-  notes: '校正模式可切換原始大小／適應螢幕，兩點定位不再因圖片過小無法點選'
+  notes: '修正配置圖被 CORS 擋住而無法顯示，校正模式可切換原始大小／適應螢幕'
 }, null, 2)}\n`;
 const currentVersionPayload = readFileSync(versionPath, 'utf8');
 

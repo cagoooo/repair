@@ -90,6 +90,17 @@
     /* Let clicks pass through if needed, wrapper handles selection */
 }
 
+.map-image-error {
+    margin: 0 2rem 0.5rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid #f87171;
+    border-radius: 8px;
+    background: rgba(239, 68, 68, 0.15);
+    color: #fecaca;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
 /* Room Markers */
 .room-marker {
     position: absolute;

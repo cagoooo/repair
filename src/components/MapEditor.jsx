@@ -79,6 +79,7 @@ const MapEditor = ({
     const [calibrationStep, setCalibrationStep] = useState(0); // 0: 無, 1: 點擊第一點, 2: 點擊第二點
     const [calibrationClicks, setCalibrationClicks] = useState([]);
     const [isFitScreen, setIsFitScreen] = useState(true); // 縮放模式：預設為適應螢幕
+    const [imageLoadFailed, setImageLoadFailed] = useState(false); // 配置圖載入失敗時要明確告知，避免靜默塌縮
 
     // Calibration Panel State
     const [panelPosition, setPanelPosition] = useState(null); // {x, y} or null (default CSS)
@@ -1271,6 +1272,12 @@ const MapEditor = ({
                     </div>
                 )}
 
+                {imageLoadFailed && (
+                    <div className="map-image-error" role="alert">
+                        ⚠️ 配置圖無法載入，教室框會全部擠在一起而無法校正。請確認圖片網址是否仍有效，或重新上傳配置圖。
+                    </div>
+                )}
+
                 <div className="map-scroll-container" style={{
                     flex: 1,
                     overflow: 'auto',
@@ -1318,12 +1325,17 @@ const MapEditor = ({
 
 
 
+                        {/* 不可加 crossOrigin：Storage 桶未設 CORS 時會讓圖片整張載入失敗，
+                            容器塌成 0×0、所有百分比定位的教室框擠成一點。
+                            本元件只顯示圖片、不讀取像素（尺寸由上傳時的 dataUrl 取得），
+                            因此不需要 CORS 模式。 */}
                         <img
                             ref={imageRef}
                             src={imageUrl}
-                            crossOrigin="anonymous"
                             alt="教室配置圖"
                             className="map-editor-image"
+                            onLoad={() => setImageLoadFailed(false)}
+                            onError={() => setImageLoadFailed(true)}
                             style={{
                                 display: 'block',
                                 maxWidth: isFitScreen ? '100%' : 'none',
