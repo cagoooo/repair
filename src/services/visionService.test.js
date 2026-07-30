@@ -141,6 +141,17 @@ describe('115 學年度實圖文字層回歸', () => {
     });
   });
 
+  it('特殊教室的判斷優先於行政辦公', () => {
+    const categoryOf = code => rooms.find(item => item.code === code)?.category;
+    // 含「室」但同時是特殊教室者應歸 special，不可因為「室」被誤判成 office
+    expect(categoryOf('C303')).toBe('special'); // 視聽器材室
+    expect(categoryOf('C301')).toBe('special'); // 圖書館
+    expect(categoryOf('C135')).toBe('special'); // 禮堂
+    // 真正的行政空間仍為 office
+    expect(categoryOf('C204')).toBe('office');  // 總務處
+    expect(categoryOf('C214')).toBe('office');  // 校史室
+  });
+
   it('換算後的座標全部落在圖片範圍內', () => {
     const percent = convertPixelToPercent(rooms, textLayer115.meta.imageWidth, textLayer115.meta.imageHeight);
     percent.forEach(room => {
