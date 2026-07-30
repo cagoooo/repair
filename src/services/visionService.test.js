@@ -104,6 +104,43 @@ describe('115 學年度實圖文字層回歸', () => {
     expect(codes).not.toContain(textLayer115.meta.manualRoomAbsent);
   });
 
+  it('班級名稱保留班號，同年級不會出現同名', () => {
+    const byCode = code => rooms.find(item => item.code === code)?.name || '';
+    expect(byCode('C102')).toContain('一年1班');
+    expect(byCode('C106')).toContain('一年5班');
+    expect(byCode('C307')).toContain('六年1班');
+    expect(byCode('C314')).toContain('六年6班');
+
+    const firstGradeNames = ['C102', 'C103', 'C104', 'C105', 'C106'].map(byCode);
+    expect(new Set(firstGradeNames).size).toBe(5);
+  });
+
+  it('多行名稱與偏左名稱都能完整聚合', () => {
+    const byCode = code => rooms.find(item => item.code === code)?.name || '';
+    expect(byCode('C303')).toContain('視聽器材室');
+    expect(byCode('C212')).toContain('電腦教室');
+    expect(byCode('C219')).toContain('教師研討室');
+    expect(byCode('C306')).toContain('桌球練習室');
+    expect(byCode('C210')).toContain('大辦公室');
+    expect(byCode('C217')).toContain('魚寶屋課照班6B');
+  });
+
+  it('不會把隔壁教室或無編號區域的文字併進來', () => {
+    const byCode = code => rooms.find(item => item.code === code)?.name || '';
+    // 「檔案室六年」是舊版的經典誤併，C211 不可吃到右側 C307 的「六年1班」
+    expect(byCode('C211')).toContain('檔案室');
+    expect(byCode('C211')).not.toContain('六年');
+    // 無編號區域不得被當成鄰室名稱
+    expect(rooms.some(room => room.name.includes('川堂'))).toBe(false);
+    expect(rooms.some(room => room.name.includes('交材'))).toBe(false);
+  });
+
+  it('W 廁所與 S 樓梯都歸為公共設施', () => {
+    ['W101', 'W302', 'S104', 'S107'].forEach(code => {
+      expect(rooms.find(item => item.code === code)?.category, code).toBe('utility');
+    });
+  });
+
   it('換算後的座標全部落在圖片範圍內', () => {
     const percent = convertPixelToPercent(rooms, textLayer115.meta.imageWidth, textLayer115.meta.imageHeight);
     percent.forEach(room => {

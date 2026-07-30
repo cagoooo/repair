@@ -22,7 +22,7 @@ if (syncedServiceWorker === originalServiceWorker &&
 
 const versionPayload = `${JSON.stringify({
   version: packageVersion,
-  notes: '配置圖自動演練、新舊疊圖比較、批次編輯與發布前完整快照'
+  notes: '教室名稱聚合修正：保留班號與多行名稱，W／S 系列歸為公共設施'
 }, null, 2)}\n`;
 const currentVersionPayload = readFileSync(versionPath, 'utf8');
 
