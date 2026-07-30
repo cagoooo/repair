@@ -197,16 +197,21 @@ export const parseVisionAnnotations = (annotations = []) => {
                 };
             }
 
-            // 智能分類
-            // 優先序：公共設施 → 特殊教室 → 行政辦公 → 一般教室。
-            // 特殊教室要先於行政辦公判斷，否則「視聽器材室」「音樂教室」這類名稱
-            // 會因為含有「室」而被誤判成行政辦公空間。
+            // 針對固定功能區域實施規則判定：
+            // W 開頭固定名稱為「廁所」、S 開頭固定名稱為「樓梯」，皆歸類為 utility (公共設施)
             let category = 'classroom';
-            const textLower = combinedName.toLowerCase();
-            // W 系列為廁所、S 系列為樓梯間，皆屬公共設施而非教室
-            if (/^[WS]/.test(anchor.text) || textLower.includes('廁') || textLower.includes('衛') || textLower.includes('樓梯')) category = 'utility';
-            else if (textLower.includes('圖書') || textLower.includes('音') || textLower.includes('藝') || textLower.includes('禮堂') || textLower.includes('器材')) category = 'special';
-            else if (textLower.includes('辦公') || textLower.includes('處') || textLower.includes('室')) category = 'office';
+            if (/^W/i.test(anchor.text)) {
+                combinedName = '廁所';
+                category = 'utility';
+            } else if (/^S/i.test(anchor.text)) {
+                combinedName = '樓梯';
+                category = 'utility';
+            } else {
+                const textLower = combinedName.toLowerCase();
+                if (textLower.includes('廁') || textLower.includes('衛') || textLower.includes('樓梯')) category = 'utility';
+                else if (textLower.includes('圖書') || textLower.includes('音') || textLower.includes('藝') || textLower.includes('禮堂') || textLower.includes('器材')) category = 'special';
+                else if (textLower.includes('辦公') || textLower.includes('處') || textLower.includes('室')) category = 'office';
+            }
 
             finalRooms.push({
                 id: `vision_${Date.now()}_${finalRooms.length}`,

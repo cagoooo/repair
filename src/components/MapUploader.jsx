@@ -23,6 +23,8 @@ function MapUploader({ onUpload, currentImage }) {
     const [pdfPreview, setPdfPreview] = useState(null);
     const [isRenderingPdf, setIsRenderingPdf] = useState(false);
     const [autoRehearsal, setAutoRehearsal] = useState(() => localStorage.getItem('repair_auto_map_rehearsal') === 'true');
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const [uploadStatus, setUploadStatus] = useState('');
     const fileInputRef = useRef(null);
 
     useEffect(() => () => {
@@ -61,16 +63,27 @@ function MapUploader({ onUpload, currentImage }) {
 
     const uploadPreparedImage = async (imageBlob, imageName, metadata) => {
         setIsUploading(true);
+        setUploadProgress(15);
+        setUploadStatus('正在讀取與檢驗檔案格式…');
         try {
+            setUploadProgress(30);
+            setUploadStatus('正在轉換圖檔 Base64 數據…');
             const ocrDataUrl = metadata.ocrDataUrl || await blobToDataUrl(imageBlob);
+
+            setUploadProgress(50);
+            setUploadStatus('正在解析圖像解析度與尺寸…');
             const dimensions = await loadImageDimensions(ocrDataUrl);
             let sourceFilePath = '';
 
             if (functions) {
+                setUploadProgress(70);
+                setUploadStatus('正在將圖片儲存至雲端安全 Storage…');
                 const uploadedImage = await uploadMapFile(imageBlob, imageName, 'image');
 
                 if (metadata.sourceFile) {
                     try {
+                        setUploadProgress(85);
+                        setUploadStatus('正在上傳 PDF 原檔備查…');
                         const uploadedSource = await uploadMapFile(
                             metadata.sourceFile,
                             metadata.sourceFile.name,
@@ -78,11 +91,12 @@ function MapUploader({ onUpload, currentImage }) {
                         );
                         sourceFilePath = uploadedSource.storagePath;
                     } catch (sourceError) {
-                        // PDF 原檔是選用備查；轉換後的正式圖片已成功上傳，不阻塞換圖流程。
                         console.warn('PDF 原檔未保存，但轉換圖片可繼續使用：', sourceError);
                     }
                 }
 
+                setUploadProgress(95);
+                setUploadStatus('上傳完成！準備進入教室配置編輯與演練…');
                 onUpload(uploadedImage.downloadURL, imageName, {
                     ...metadata,
                     autoRehearsal,
@@ -92,6 +106,8 @@ function MapUploader({ onUpload, currentImage }) {
                     ocrDataUrl
                 });
             } else {
+                setUploadProgress(95);
+                setUploadStatus('本地測試模式：使用 Data URL 載入…');
                 console.warn('Firebase Storage 未啟用，使用本地 Data URL');
                 onUpload(ocrDataUrl, imageName, {
                     ...metadata,
@@ -101,6 +117,7 @@ function MapUploader({ onUpload, currentImage }) {
                     ocrDataUrl
                 });
             }
+            setUploadProgress(100);
             setPdfSession(null);
             setPdfPreview(null);
         } catch (err) {
@@ -108,6 +125,8 @@ function MapUploader({ onUpload, currentImage }) {
             setError('上傳失敗：' + err.message);
         } finally {
             setIsUploading(false);
+            setUploadProgress(0);
+            setUploadStatus('');
         }
     };
 
@@ -184,7 +203,7 @@ function MapUploader({ onUpload, currentImage }) {
                             <strong>PDF 頁面預覽</strong>
                             <span>{pdfSession.fileName}</span>
                         </div>
-                        <button type="button" className="btn btn-sm btn-secondary" onClick={cancelPdf}>取消</button>
+                        <button type="button" className="btn btn-sm btn-secondary" onClick={cancelPdf} disabled={isUploading}>取消</button>
                     </div>
                     <div className="pdf-preview-frame">
                         {isRenderingPdf ? <span className="spinner"></span> : (
@@ -195,14 +214,14 @@ function MapUploader({ onUpload, currentImage }) {
                         <button
                             type="button"
                             className="btn btn-secondary"
-                            disabled={pdfPage <= 1 || isRenderingPdf}
+                            disabled={pdfPage <= 1 || isRenderingPdf || isUploading}
                             onClick={() => showPdfPage(pdfSession, pdfPage - 1)}
                         >上一頁</button>
                         <span>第 {pdfPage} / {pdfSession.pageCount} 頁</span>
                         <button
                             type="button"
                             className="btn btn-secondary"
-                            disabled={pdfPage >= pdfSession.pageCount || isRenderingPdf}
+                            disabled={pdfPage >= pdfSession.pageCount || isRenderingPdf || isUploading}
                             onClick={() => showPdfPage(pdfSession, pdfPage + 1)}
                         >下一頁</button>
                         <button
@@ -210,7 +229,7 @@ function MapUploader({ onUpload, currentImage }) {
                             className="btn btn-primary"
                             disabled={!pdfPreview || isRenderingPdf || isUploading}
                             onClick={confirmPdfPage}
-                        >{isUploading ? '上傳中…' : '使用這一頁'}</button>
+                        >{isUploading ? `處理中 (${uploadProgress}%)` : '使用這一頁'}</button>
                     </div>
                 </div>
             )}
@@ -218,13 +237,28 @@ function MapUploader({ onUpload, currentImage }) {
             {currentImage ? (
                 <div className="current-image-container">
                     <img src={currentImage} alt="目前的教室配置圖" className="current-image" />
-                    <div className="image-overlay">
-                        <button
-                            className="btn btn-secondary"
-                            onClick={() => fileInputRef.current?.click()}
-                        >
-                            📤 更換圖片
-                        </button>
+                    <div className={`image-overlay ${isUploading ? 'is-active-upload' : ''}`}>
+                        {isUploading ? (
+                            <div className="upload-progress-box">
+                                <span className="upload-spin-icon">⏳</span>
+                                <h4 className="upload-progress-title">更換圖檔處理中…</h4>
+                                <p className="upload-progress-status">{uploadStatus}</p>
+                                <div className="upload-progress-bar-track">
+                                    <div
+                                        className="upload-progress-bar-fill"
+                                        style={{ width: `${uploadProgress}%` }}
+                                    ></div>
+                                </div>
+                                <span className="upload-progress-percent">{uploadProgress}%</span>
+                            </div>
+                        ) : (
+                            <button
+                                className="btn btn-secondary"
+                                onClick={() => fileInputRef.current?.click()}
+                            >
+                                📤 更換圖片
+                            </button>
+                        )}
                     </div>
                 </div>
             ) : (
@@ -233,14 +267,22 @@ function MapUploader({ onUpload, currentImage }) {
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => !isUploading && fileInputRef.current?.click()}
                 >
                     <div className="upload-content">
                         {isUploading ? (
-                            <>
-                                <span className="upload-icon animate-pulse">⏳</span>
-                                <p>上傳中...</p>
-                            </>
+                            <div className="upload-progress-box">
+                                <span className="upload-spin-icon">⏳</span>
+                                <h4 className="upload-progress-title">更換圖檔上傳中…</h4>
+                                <p className="upload-progress-status">{uploadStatus}</p>
+                                <div className="upload-progress-bar-track">
+                                    <div
+                                        className="upload-progress-bar-fill"
+                                        style={{ width: `${uploadProgress}%` }}
+                                    ></div>
+                                </div>
+                                <span className="upload-progress-percent">{uploadProgress}%</span>
+                            </div>
                         ) : (
                             <>
                                 <span className="upload-icon">📁</span>

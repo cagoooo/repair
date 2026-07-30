@@ -135,9 +135,16 @@ describe('115 學年度實圖文字層回歸', () => {
     expect(rooms.some(room => room.name.includes('交材'))).toBe(false);
   });
 
-  it('W 廁所與 S 樓梯都歸為公共設施', () => {
-    ['W101', 'W302', 'S104', 'S107'].forEach(code => {
-      expect(rooms.find(item => item.code === code)?.category, code).toBe('utility');
+  it('W 廁所與 S 樓梯都歸為公共設施且固定命名', () => {
+    ['W101', 'W302'].forEach(code => {
+      const room = rooms.find(item => item.code === code);
+      expect(room?.category, code).toBe('utility');
+      expect(room?.name, code).toBe('廁所');
+    });
+    ['S104', 'S107'].forEach(code => {
+      const room = rooms.find(item => item.code === code);
+      expect(room?.category, code).toBe('utility');
+      expect(room?.name, code).toBe('樓梯');
     });
   });
 
