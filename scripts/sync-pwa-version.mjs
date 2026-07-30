@@ -22,7 +22,7 @@ if (syncedServiceWorker === originalServiceWorker &&
 
 const versionPayload = `${JSON.stringify({
   version: packageVersion,
-  notes: '修正配置圖被 CORS 擋住而無法顯示，校正模式可切換原始大小／適應螢幕'
+  notes: '地圖提示不再重複顯示教室編號；配置圖 CORS 與校正縮放修正'
 }, null, 2)}\n`;
 const currentVersionPayload = readFileSync(versionPath, 'utf8');
 

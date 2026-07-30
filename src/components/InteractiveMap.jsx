@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { getRoomDisplayName } from '../services/roomConfigService';
 import './InteractiveMap.css';
 
 /**
@@ -150,7 +151,7 @@ function InteractiveMap({ imageUrl, rooms, repairs, onRoomClick, onEditMap }) {
                                     setSelectedRoomId(room.id);
                                     onRoomClick(room);
                                 }}
-                                title={`${room.name} (${room.code}) - ${count} 件待修`}
+                                title={`${getRoomDisplayName(room) || room.code} (${room.code}) - ${count} 件待修`}
                             >
                                 <div className="room-label-container">
                                     <div className="room-label-wrapper">
