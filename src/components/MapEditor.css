@@ -691,6 +691,35 @@
 .map-import-summary .added { border-color: rgba(16, 185, 129, 0.55); }
 .map-import-summary .preserved { border-color: rgba(59, 130, 246, 0.55); }
 
+.map-import-preserve {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid rgba(59, 130, 246, 0.45);
+    border-radius: 10px;
+    background: rgba(30, 58, 138, 0.22);
+    cursor: pointer;
+}
+
+.map-import-preserve input {
+    margin-top: 2px;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.map-import-preserve span {
+    display: grid;
+    gap: 4px;
+}
+
+.map-import-preserve small {
+    color: var(--text-secondary, #94a3b8);
+    line-height: 1.6;
+}
+
 .map-import-error {
     padding: 10px 12px;
     color: #fecaca;

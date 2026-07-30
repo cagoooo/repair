@@ -23,6 +23,46 @@ describe('roomConfigService', () => {
     expect(getRoomDisplayName(room('C112', 'C112 二年甲班'))).toBe('二年甲班');
   });
 
+  it('預設會套用辨識到的新框位', () => {
+    const current = [room('C112', 'C112 二年甲班')];
+    const detected = [room('C112', 'C112 三年甲班', 'vision_new_9', 40)];
+    const result = mergeRoomsByCode(current, detected);
+
+    expect(result.mergedRooms[0].bounds.x).toBe(40);
+  });
+
+  it('preserveExistingBounds 只更新名稱與分類，框位沿用舊資料', () => {
+    const current = [{ ...room('C112', 'C112 二年甲班'), bounds: { x: 10, y: 20, width: 8, height: 6 } }];
+    const detected = [{
+      ...room('C112', 'C112 三年甲班', 'vision_new_9'),
+      category: 'office',
+      bounds: { x: 55, y: 66, width: 2, height: 1 }
+    }];
+    const result = mergeRoomsByCode(current, detected, { preserveExistingBounds: true });
+
+    expect(result.mergedRooms[0].bounds).toEqual({ x: 10, y: 20, width: 8, height: 6 });
+    expect(result.mergedRooms[0].name).toBe('C112 三年甲班');
+    expect(result.mergedRooms[0].category).toBe('office');
+    // 名稱有變更仍要進入人工確認佇列
+    expect(result.reviewItems[0]).toMatchObject({ code: 'C112', reasons: ['name_changed'] });
+  });
+
+  it('preserveExistingBounds 對新增教室仍使用辨識到的框位', () => {
+    const detected = [{ ...room('C999', 'C999 新教室'), bounds: { x: 70, y: 5, width: 3, height: 2 } }];
+    const result = mergeRoomsByCode([], detected, { preserveExistingBounds: true });
+
+    expect(result.added).toHaveLength(1);
+    expect(result.mergedRooms[0].bounds).toEqual({ x: 70, y: 5, width: 3, height: 2 });
+  });
+
+  it('preserveExistingBounds 遇到舊資料框位無效時退回使用新框位', () => {
+    const current = [{ ...room('C112', 'C112 二年甲班'), bounds: { x: 1, y: 1, width: 0, height: 0 } }];
+    const detected = [{ ...room('C112', 'C112 三年甲班'), bounds: { x: 30, y: 40, width: 4, height: 3 } }];
+    const result = mergeRoomsByCode(current, detected, { preserveExistingBounds: true });
+
+    expect(result.mergedRooms[0].bounds).toEqual({ x: 30, y: 40, width: 4, height: 3 });
+  });
+
   it('重新辨識時依編號保留既有穩定 ID', () => {
     const current = [room('C112', 'C112 二年甲班', 'vision_old_1')];
     const detected = [room('C112', 'C112 三年甲班', 'vision_new_9', 10)];
