@@ -1,5 +1,7 @@
 # 校園報修系統 (Campus Repair System)
 
+🌐 **線上使用：[智慧校園報修系統](https://cagoooo.github.io/repair/)**
+
 一個基於 React + Vite + Firebase 的校園設備報修系統。
 
 ## 🌟 功能特色
@@ -235,7 +237,7 @@ Made with ❤️ for SMES
 - Repository：`cagoooo/repair`
 - 可見性：公開
 - 主要技術：JavaScript、React、Vite、Firebase
-- 線上入口：未在 GitHub repository metadata 設定
+- 線上入口：<https://cagoooo.github.io/repair/>
 
 ### 可以怎麼應用
 
