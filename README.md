@@ -2,6 +2,8 @@
 
 🌐 **線上使用：[智慧校園報修系統](https://cagoooo.github.io/repair/)**
 
+> 📌 **目前版本：v0.17.0**（依據 程式內版本常數）
+
 一個基於 React + Vite + Firebase 的校園設備報修系統。
 
 ## 🌟 功能特色
