@@ -975,18 +975,21 @@ function App() {
   const handleForceUpdate = async () => {
     if (confirm('確定要強制更新並清除暫存嗎？\n這將會清除瀏覽器快取並重新載入網頁，確保您看到的是最新版本。')) {
       try {
-        // 1. 註銷所有 Service Workers
+        // 同網域（cagoooo.github.io）所有工具共用註冊與快取，只清本工具自己的
+        const ownScope = new URL(import.meta.env.BASE_URL, window.location.origin).href;
+
+        // 1. 註銷本工具的 Service Worker
         if ('serviceWorker' in navigator) {
           const registrations = await navigator.serviceWorker.getRegistrations();
           for (let registration of registrations) {
-            await registration.unregister();
+            if (registration.scope.startsWith(ownScope)) await registration.unregister();
           }
         }
 
-        // 2. 清除 Cache Storage
+        // 2. 清除本工具的 Cache Storage（public/sw.js 的 repair-v 開頭快取）
         if ('caches' in window) {
           const cacheNames = await caches.keys();
-          await Promise.all(cacheNames.map(name => caches.delete(name)));
+          await Promise.all(cacheNames.filter(name => name.startsWith('repair-v')).map(name => caches.delete(name)));
         }
 
         // 3. 強制從伺服器重新載入
