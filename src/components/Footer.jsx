@@ -32,6 +32,25 @@ const Footer = () => {
                     </p>
                 </div>
             </div>
+
+            {/* 署名列（2026-11-17 新增） */}
+            <div className="footer-credit-row">
+                <p className="site-credit">
+                    Made with <span className="site-credit__heart" aria-label="愛心">❤️</span> by{' '}
+                    <a
+                        href="https://cagoooo.github.io/Akai/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="阿凱老師教育科技創新專區"
+                        className="site-credit__author"
+                    >
+                        阿凱老師
+                    </a>
+                    <span className="site-credit__school">
+                        <span className="site-credit__dot" aria-hidden="true">・</span>桃園市龍潭區石門國民小學
+                    </span>
+                </p>
+            </div>
         </footer>
     );
 };
