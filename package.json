@@ -18,7 +18,7 @@
   "dependencies": {
     "browser-image-compression": "^2.0.2",
     "firebase": "^12.9.0",
-    "pdfjs-dist": "^6.1.200",
+    "pdfjs-dist": "^6.5.438",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-qr-code": "^2.0.18",
